@@ -839,6 +839,24 @@
         "bug",
         "data"
       ]
+    },
+    {
+      "login": "justaLoli",
+      "name": "justaLoli",
+      "avatar_url": "https://avatars.githubusercontent.com/u/92238102?v=4",
+      "profile": "https://github.com/justaLoli",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "arthurward",
+      "name": "arthurward",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8432358?v=4",
+      "profile": "https://github.com/arthurward",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
