@@ -184,6 +184,8 @@ class ExifWriter(_ExifMixin):
         """
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Could not find file {filepath}")
+
+        print(f"DEBUG: {options=}")
         exif_info = self.exiftool_dict(options=options)
         with ExifTool(
             filepath,
@@ -196,6 +198,10 @@ class ExifWriter(_ExifMixin):
                         exiftool.setvalue(exiftag, v)
                 else:
                     exiftool.setvalue(exiftag, val)
+
+        print(f"DEBUG: {exiftool.warning=} {exiftool.error=}")
+        print(f"DEBUG: {exiftool.json}")
+
         return exiftool.warning, exiftool.error
 
     def exiftool_dict(
@@ -427,6 +433,7 @@ class ExifWriter(_ExifMixin):
             datetimeoriginal = date.strftime("%Y:%m:%d %H:%M:%S")
 
             if self.photo.isphoto:
+                print(f"DEBUG: writing {datetimeoriginal=} BUT we have: {offsettime=}")
                 exif["EXIF:DateTimeOriginal"] = datetimeoriginal
                 exif["EXIF:CreateDate"] = datetimeoriginal
                 exif["EXIF:OffsetTimeOriginal"] = offsettime
@@ -437,6 +444,8 @@ class ExifWriter(_ExifMixin):
                 timeoriginal = date.strftime(f"%H:%M:%S{offsettime}")
                 exif["IPTC:TimeCreated"] = timeoriginal
 
+                # exif["FileModifyDate"] = datetimeoriginal
+
                 if (
                     self.photo.date_modified is not None
                     and not options.ignore_date_modified
@@ -444,10 +453,13 @@ class ExifWriter(_ExifMixin):
                     exif["EXIF:ModifyDate"] = self.photo.date_modified.strftime(
                         "%Y:%m:%d %H:%M:%S"
                     )
+                    print(f"DEBUG self.photo.date_modified is not None {exif['EXIF:ModifyDate']=}")
                 else:
                     exif["EXIF:ModifyDate"] = self.photo.date.strftime(
                         "%Y:%m:%d %H:%M:%S"
                     )
+                    print(f"DEBUG self.photo.date_modified is None {exif['EXIF:ModifyDate']=}")
+
             elif self.photo.ismovie:
                 # QuickTime spec specifies times in UTC
                 # QuickTime:CreateDate and ModifyDate are in UTC w/ no timezone
@@ -475,6 +487,10 @@ class ExifWriter(_ExifMixin):
         if self.photo.isphoto and self.photo.uti == "public.png":
             exif = {k: v for k, v in exif.items() if not k.startswith("IPTC:")}
 
+        print(f"DEBUG: exif.values.2.write{' '.join(exif)=}")
+        for key in exif.keys():
+            print(f"{key=} : {exif[key]=}", end = " ")
+        
         return exif
 
     def _get_mwg_face_regions_exiftool(self):

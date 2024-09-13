@@ -486,6 +486,7 @@ class PhotoExporter:
             # first, find all matching files in export db and see if there's a match
             if dest_target := export_db.get_target_for_file(self.photo.uuid, dest):
                 # there's a match so use that
+                print(f"DEBUG _get_dest_path: MATCH in OSXPHOTOSDB...{dest_target=}...going for lock and RETURN") 
                 _lock_filename(dest_target)
                 return pathlib.Path(dest_target)
 
@@ -495,7 +496,10 @@ class PhotoExporter:
             dest, count = increment_filename_with_count(dest, count, lock=lock)
             count += 1
             while export_db.get_uuid_for_file(dest) is not None:
+                print(f"DEBUG _get_uuid_for_file: is not None...{dest=}...{count=}") 
                 dest, count = increment_filename_with_count(dest, count, lock=lock)
+
+            print(f"DEBUG _get_dest_path: NO MATCH in OSXPHOTOSDB...{dest_target=}...DONE INCREMENT") 
             return pathlib.Path(dest)
 
         # fail safe...I can't think of a case that gets here

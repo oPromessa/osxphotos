@@ -69,8 +69,13 @@ class PhotoCompare:
         photos_date = datetime_naive_to_local(photo.date)
         photos_date = datetime_to_new_tz(photos_date, photos_offset_seconds)
         photos_date_str = photos_date.strftime("%Y-%m-%d %H:%M:%S")
+        # if self.photo.ismovie:
 
+        # if self.photo.isphoto:
         photo_ = self.db.get_photo(photo.uuid)
+
+        xphotos_date_str = photos_date.strftime("%Y-%m-%d %H:%M:%S%z")
+        print(f"DEBUG: {photos_date_str=} with %z: {xphotos_date_str=}")
         if photo_path := photo_.path:
             exif = ExifTool(filepath=photo_path, exiftool=self.exiftool_path)
             exif_dict = exif.asdict()
@@ -84,6 +89,11 @@ class PhotoCompare:
         else:
             exif_date = ""
             exif_offset = ""
+        xexif_date_str = ( exif_dt_offset.datetime.strftime("%Y-%m-%d %H:%M:%S%z")
+                if exif_dt_offset.datetime
+                else ""
+        )
+        print(f"DEBUG: {exif_date=} with %z: {xexif_date_str=}. {exif_offset=}")
 
         return [photos_date_str, photos_tz_str, exif_date, exif_offset]
 

@@ -364,18 +364,27 @@ def increment_filename_with_count(
 
     Note: This obviously is subject to race condition so using with caution.
     """
+    print(f"DEBUG: Entering increment_filename_with_count...{filepath=} and {count=}") 
     dest = filepath if isinstance(filepath, pathlib.Path) else pathlib.Path(filepath)
     dest_files = list_directory(dest.parent, startswith=dest.stem)
+    print(f"DEBUG: #1{dest_files=}") 
     dest_files = [f.stem.lower() for f in dest_files]
+    print(f"DEBUG: #2{dest_files=}") 
     dest_new = f"{dest.stem} ({count})" if count else dest.stem
     dest_new = normalize_fs_path(dest_new)
+
+    print(f"DEBUG: dest_new {dest_new=}") 
+    print(f"DEBUG: dest_new {dest_new.lower()=}") 
 
     while dest_new.lower() in dest_files:
         count += 1
         dest_new = normalize_fs_path(f"{dest.stem} ({count})")
     dest = dest.parent / f"{dest_new}{dest.suffix}"
+    print(f"DEBUG: DEST Found {dest=}") 
+
     if lock and not lock_filename(dest):
         # if lock fails, increment count and try again
+        print(f"DEBUG: LOCKED FILE... Found {dest=} will still increment!") 
         return increment_filename_with_count(filepath, count + 1, lock=lock)
     return normalize_fs_path(str(dest)), count
 

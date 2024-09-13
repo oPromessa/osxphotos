@@ -80,6 +80,7 @@ def get_exif_date_time_offset(
 
     for dt_str in time_fields:
         dt = exif.get(dt_str)
+        print(f"DEBUG: {dt_str=} {dt=}")
         if dt and dt_str in {"IPTC:DateCreated", "DateCreated"}:
             # also need time
             time_ = exif.get("IPTC:TimeCreated") or exif.get("TimeCreated")
@@ -97,6 +98,9 @@ def get_exif_date_time_offset(
 
     # try to get offset from EXIF:OffsetTimeOriginal
     offset = exif.get("EXIF:OffsetTimeOriginal") or exif.get("OffsetTimeOriginal")
+
+    print(f"DEBUG: {dt_str=} {dt=} {offset=}")
+
     if dt and not offset:
         # see if offset set in the dt string
         for pattern in (
@@ -109,6 +113,8 @@ def get_exif_date_time_offset(
                 break
         else:
             offset = None
+            print(f"DEBUG: NOOFFSET {offset=}")
+
 
     if dt:
         # make sure we have time
@@ -142,6 +148,8 @@ def get_exif_date_time_offset(
 
     # format offset in form +/-hhmm
     offset_str = offset.replace(":", "") if offset else ""
+
+    print(f"DEBUG: {offset_seconds=} {offset_str=}")
     return ExifDateTime(
         dt, offset_seconds, offset_str, default_time, used_file_modify_date
     )

@@ -2605,6 +2605,7 @@ def export_photo(
                 edited_filename = (
                     f"{edited_filename.stem}{rendered_edited_suffix}{edited_ext}"
                 )
+                print(f"DEBUG: {edited_filename=}") 
 
                 verbose(
                     f"Exporting edited version of [filename]{photo.original_filename}[/filename] ([filename]{photo.filename}[/filename])"
@@ -2817,6 +2818,8 @@ def export_photo_to_directory(
                 fix_orientation=fix_orientation,
             )
             exporter = PhotoExporter(photo)
+            print(f"DEBUG: Calling export [{dest_path=}] [{filename=}]") 
+            
             export_results = exporter.export(
                 dest=dest_path, filename=filename, options=export_options
             )
