@@ -866,6 +866,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "Syntaxheld",
+      "name": "Syntaxheld",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6772181?v=4",
+      "profile": "https://github.com/Syntaxheld",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "christiansievers",
+      "name": "Christian Sievers",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20228200?v=4",
+      "profile": "https://christiansievers.info",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
