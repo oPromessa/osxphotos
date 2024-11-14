@@ -183,7 +183,7 @@ class ExifDateTimeUpdater:
             )
             return None
 
-         # print(f"{dtinfo=} {type(dtinfo)=} {dtinfo.offset_seconds=}")
+        # print(f"{dtinfo=} {type(dtinfo)=} {dtinfo.offset_seconds=}")
 
         if dtinfo.offset_seconds is not None:
             # update timezone then update date/time
