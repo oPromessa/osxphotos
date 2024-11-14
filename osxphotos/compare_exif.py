@@ -137,3 +137,4 @@ class PhotoCompare:
             exif_time,
             exif_tz,
         )
+    
