@@ -16,6 +16,7 @@ cli.spec
 *.pyc
 docsrc/_build/
 venv/
+venv*/
 .python-version
 cov.xml
 pyrightconfig.json
