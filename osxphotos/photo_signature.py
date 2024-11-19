@@ -27,7 +27,7 @@ def photo_signature(
     if photo.shared:
         return _shared_photo_signature(photo)
 
-    if photo.fingerprint:
+    if photo.fingerprint and False:
         return f"{photo.original_filename.lower()}:{photo.fingerprint}"
 
     if photo.path and is_macos:
