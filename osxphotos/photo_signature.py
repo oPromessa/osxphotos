@@ -27,7 +27,10 @@ def photo_signature(
     if photo.shared:
         return _shared_photo_signature(photo)
 
-    if photo.fingerprint:
+    # TODO add option to sync export to recalculate fingerprint from file. 
+    # Thing is that it also impacts export... 
+    # ... and will update pics given the new fingerprint calculation!
+    if photo.fingerprint and False:
         return f"{photo.original_filename.lower()}:{photo.fingerprint}"
 
     if photo.path and is_macos:
