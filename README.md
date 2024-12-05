@@ -61,7 +61,7 @@ Limited support is also provided for exporting photos and metadata from iPhoto l
 
 This package will read Photos databases for any supported version on any supported macOS version.  E.g. you can read a database created with Photos 5.0 on MacOS 10.15 on a machine running macOS 10.12 and vice versa.
 
-Requires python >= `3.9`, <= `3.12`. Reading iPhoto libraries requires python >= `3.10`.
+Requires python >= `3.10`, <= `3.13`.
 
 For macOS 15.0 / Sequoia developer preview, alpha support is provided (very preliminary, not guaranteed to work). Not all features of osxphotos have been tested and some features may not work. If you encounter issues, please open an issue on GitHub.
 
@@ -75,13 +75,19 @@ The recommended way to install `osxphotos` is via the [uv](https://github.com/as
 * Install `uv` by running the following command in Terminal:
 
 ```bash
-curl -fsSL https://uv.astral.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+If you previously installed `uv`, upgrade to the latest version:
+
+```bash
+uv self update
 ```
 
 * Type the following into Terminal:
 
 ```bash
-uv tool install osxphotos
+uv tool install --python 3.12 osxphotos
 ```
 
 * Now you should be able to run `osxphotos` by typing: `osxphotos`
@@ -92,7 +98,7 @@ Once you've installed osxphotos with `uv`, to upgrade to the latest version:
 uv tool upgrade osxphotos
 ```
 
-If you want to try `osxphotos` without installing it, you can run `uv tool run osxphotos`.
+If you want to try `osxphotos` without installing it, you can run `uv tool run --python 3.12 osxphotos` or `uvx --python 3.12 osxphotos`.
 
 ### Installation using pip
 
@@ -2363,7 +2369,7 @@ Substitution                    Description
 {cr}                            A carriage return: '\r'
 {crlf}                          A carriage return + line feed: '\r\n'
 {tab}                           :A tab: '\t'
-{osxphotos_version}             The osxphotos version, e.g. '0.68.6'
+{osxphotos_version}             The osxphotos version, e.g. '0.69.0'
 {osxphotos_cmd_line}            The full command line used to run osxphotos
 
 The following substitutions may result in multiple values. Thus if specified
@@ -2861,7 +2867,7 @@ The following template field substitutions are availabe for use the templating s
 |{cr}|A carriage return: '\r'|
 |{crlf}|A carriage return + line feed: '\r\n'|
 |{tab}|:A tab: '\t'|
-|{osxphotos_version}|The osxphotos version, e.g. '0.68.6'|
+|{osxphotos_version}|The osxphotos version, e.g. '0.69.0'|
 |{osxphotos_cmd_line}|The full command line used to run osxphotos|
 |{album}|Album(s) photo is contained in|
 |{folder_album}|Folder path + album photo is contained in. e.g. 'Folder/Subfolder/Album' or just 'Album' if no enclosing folder|
