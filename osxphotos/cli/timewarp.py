@@ -754,7 +754,7 @@ def timewarp_cli(
         return 0
 
     tz_updater = (
-        PhotoTimeZoneUpdater(timezone, applicable_date verbose=verbose, library_path=library)
+        PhotoTimeZoneUpdater(timezone, verbose=verbose, library_path=library)
         if timezone
         else None
     )

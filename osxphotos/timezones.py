@@ -48,19 +48,11 @@ if is_macos:
                     ) or Foundation.NSTimeZone.timeZoneWithName_(tz)
                     if not self.timezone:
                         raise ValueError(f"Invalid timezone: {tz}")
-                    if self._applicable_date:
-                        # Adjust for DST using the applicable date
-                        self._offset = self.timezone.secondsFromGMTForDate_(
-                            self._applicable_date
-                        )
-                    else:
-                        self._offset = self.timezone.secondsFromGMT()
                 elif isinstance(tz, (int, float)):
                     self.timezone = Foundation.NSTimeZone.timeZoneForSecondsFromGMT_(
                         int(tz)
                     )
                     self._from_offset = True
-                    self._offset = self.timezone.secondsFromGMT()
                 else:
                     raise TypeError("Timezone must be a string or an int")
                 self._name = self.timezone.name()

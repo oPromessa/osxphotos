@@ -93,7 +93,6 @@ class PhotoTimeZoneUpdater:
         verbose: Optional[Callable] = None,
         library_path: Optional[str] = None,
     ):
-        print(f"----Init: {timezone=} {timezone.name=} {timezone.offset=}")
         self.timezone = timezone
         self.tz_offset = timezone.offset
         self.tz_name = timezone.name
@@ -133,13 +132,6 @@ class PhotoTimeZoneUpdater:
     )
     def _update_photo(self, photo: Photo):
         # Use retry decorator to retry if database is locked
-
-        print(
-            "[0].Z_PK",
-            "[1]ZADDITIONALASSETATTRIBUTES.Z_OPT",
-            "[2]ZADDITIONALASSETATTRIBUTES.ZTIMEZONEOFFSET",
-            "[3]ZADDITIONALASSETATTRIBUTES.ZTIMEZONENAME",
-        )        
         try:
             uuid = photo.uuid
             sql = f"""  SELECT
@@ -159,14 +151,6 @@ class PhotoTimeZoneUpdater:
                 c.execute(sql)
                 results = c.fetchone()
 
-            print(results)
-
-            print(f"{self.timezone=} {self.tz_offset=} {self.tz_name=}")
-            # self.tz_offset = -28800 
-            # Call a get_ofetDST ( photo.date) getoffset with DST and pass it along 
-            # update ooffset
-            self.tz_offset = self.timezone.offset_str_for_date(photo.date)
-            print(f"{self.timezone=} SHould be -28800  {self.tz_offset=} {self.tz_name=}")
             if results[2] == self.tz_offset and results[3] == self.tz_name:
                 self.verbose(
                     f"Skipping timezone update for photo [filename]{photo.filename}[/filename] ([uuid]{photo.uuid}[/uuid]): nothing to do"
