@@ -753,6 +753,10 @@ def timewarp_cli(
             )
         return 0
 
+    verbose(f"{timezone=}", level=1)
+    timezone.tzinfo.offset = timezone.offset_for_date(photo.date)
+    verbose(f"{timezone=}", level=1)
+
     tz_updater = (
         PhotoTimeZoneUpdater(timezone, verbose=verbose, library_path=library)
         if timezone
