@@ -154,18 +154,7 @@ class PhotoTimeZoneUpdater:
 
             # Call offset_for_date(photo.date) to have a DST aware offset.
             tz_offset_dst = self.timezone.offset_for_date(photo.date)
-
-            self.verbose(
-                f"\n{self.tz_name=} {self.tz_offset=} {tz_offset_dst=} {photo.date=}"
-                "\n[0].Z_PK"
-                "[1]ZADDITIONALASSETATTRIBUTES.Z_OPT"
-                "[2]ZADDITIONALASSETATTRIBUTES.ZTIMEZONEOFFSET"
-                "[3]ZADDITIONALASSETATTRIBUTES.ZTIMEZONENAME"
-                f"\n{results=}",
-                level=3
-            )
-            self.tz_offset = tz_offset_dst
-            # self.tz_offset = self.timezone.offset_for_date(photo.date)
+            self.tz_offset = tz_offset_dst            
 
             if results[2] == self.tz_offset and results[3] == self.tz_name:
                 self.verbose(
