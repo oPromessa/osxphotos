@@ -753,17 +753,11 @@ def timewarp_cli(
             )
         return 0
 
-    verbose(f"----- Before {timezone=}", level=1)
-    # timezone.tzinfo.offset = timezone.offset_for_date(photo.date)
-    # self.verbose(f"----- After  {timezone=}", level=1)
-
     tz_updater = (
         PhotoTimeZoneUpdater(timezone, verbose=verbose, library_path=library)
         if timezone
         else None
     )
-
-    verbose(f"----- tz_updater details: {tz_updater.__dict__}", level=1)
 
     if any([push_exif, pull_exif, function]):
         # ExifDateTimeUpdater used to get photo path for --function

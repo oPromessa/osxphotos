@@ -154,13 +154,14 @@ class PhotoTimeZoneUpdater:
 
             # Call offset_for_date(photo.date) to have a DST aware offset.
             tz_offset_dst = self.timezone.offset_for_date(photo.date)
-            self.tz_offset = tz_offset_dst            
 
             if results[2] == self.tz_offset and results[3] == self.tz_name:
                 self.verbose(
                     f"Skipping timezone update for photo [filename]{photo.filename}[/filename] ([uuid]{photo.uuid}[/uuid]): nothing to do"
                 )
                 return
+
+            self.tz_offset = tz_offset_dst            
 
             z_opt = results[1] + 1
             z_pk = results[0]
