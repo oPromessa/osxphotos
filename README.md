@@ -102,6 +102,18 @@ If you want to try `osxphotos` without installing it, you can run `uv tool run -
 
 Note: If installing on an older version of macOS and you encounter issues installing with uv, try installing python 3.12 from [python.org](https://www.python.org/downloads/) then running uv to install osxphotos.
 
+### Installation using Brew
+
+You can install `osxphotos` via Homebrew
+
+```
+# Add the tap
+brew tap RhetTbull/osxphotos
+
+# Install osxphotos
+brew install osxphotos
+```
+
 ### Installation using pip
 
 You can install `osxphotos` directly from [pypi](https://pypi.org/project/osxphotos/):
@@ -2377,7 +2389,7 @@ Substitution                    Description
 {cr}                            A carriage return: '\r'
 {crlf}                          A carriage return + line feed: '\r\n'
 {tab}                           :A tab: '\t'
-{osxphotos_version}             The osxphotos version, e.g. '0.71.0'
+{osxphotos_version}             The osxphotos version, e.g. '0.72.1'
 {osxphotos_cmd_line}            The full command line used to run osxphotos
 
 The following substitutions may result in multiple values. Thus if specified
@@ -2875,7 +2887,7 @@ The following template field substitutions are availabe for use the templating s
 |{cr}|A carriage return: '\r'|
 |{crlf}|A carriage return + line feed: '\r\n'|
 |{tab}|:A tab: '\t'|
-|{osxphotos_version}|The osxphotos version, e.g. '0.71.0'|
+|{osxphotos_version}|The osxphotos version, e.g. '0.72.1'|
 |{osxphotos_cmd_line}|The full command line used to run osxphotos|
 |{album}|Album(s) photo is contained in|
 |{folder_album}|Folder path + album photo is contained in. e.g. 'Folder/Subfolder/Album' or just 'Album' if no enclosing folder|
