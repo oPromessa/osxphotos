@@ -152,7 +152,7 @@ def get_exif_date_time_offset(
         if not re.match(r"([+-]\d{2}:\d{2})", offset):
             offset = None
 
-    offset_seconds = exif_offset_to_seconds(offset) if offset is not None else None
+    offset_seconds = exif_offset_to_seconds(offset) if offset else None
 
     if dt:
         if offset is not None:
