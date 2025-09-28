@@ -7,7 +7,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/osxphotos?period=month&units=international_system&left_color=black&right_color=brightgreen&left_text=downloads/month)](https://pepy.tech/project/osxphotos)
 [![subreddit](https://img.shields.io/reddit/subreddit-subscribers/osxphotos?style=social)](https://www.reddit.com/r/osxphotos/)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-100-orange.svg?style=flat)](#contributors)
+[![All Contributors](https://img.shields.io/badge/all_contributors-101-orange.svg?style=flat)](#contributors)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 OSXPhotos provides the ability to interact with and query Apple's Photos.app library on macOS and Linux. You can query the Photos library database — for example, file name, file path, and metadata such as keywords/tags, persons/faces, albums, etc. You can also easily export both the original and edited photos. OSXPhotos also works with iPhoto libraries though some features are available only for Photos.
@@ -45,7 +45,8 @@ Tested on macOS Sierra (10.12.6) through macOS Sequoia (15.6). Tested on both x8
 
 | macOS Version     | macOS name | Photos.app version  |
 | ----------------- |------------|:--------------------|
-| 26.0              | Tahoe      | 11.0 (alpha support)|
+| 26.0              | Tahoe      | 11.0 (not yet tested) ❌|
+| 26.0 (beta)       | Tahoe      | 11.0 (alpha support)|
 | 15.0 - 15.6       | Sequoia    | 10.0 ✅             |
 | 14.0 - 14.6       | Sonoma     | 9.0 ✅              |
 | 13.0 - 13.6       | Ventura    | 8.0 ✅              |
@@ -784,12 +785,21 @@ Options:
                                   photos matching any person
   --album ALBUM                   Search for photos in album ALBUM. If more than
                                   one album, treated as "OR", e.g. find photos
-                                  matching any album
+                                  matching any album. For albums in a folder,
+                                  specify the entire folder path, e.g. 'My
+                                  Folder/My Album'. If album name contains a
+                                  forward slash, use double slashes to escape
+                                  it, e.g. 'Travel//2025' for an album named
+                                  'Travel/2025'.
   --folder FOLDER                 Search for photos in an album in folder
                                   FOLDER. If more than one folder, treated as
-                                  "OR", e.g. find photos in any FOLDER.  Only
-                                  searches top level folders (e.g. does not look
-                                  at subfolders)
+                                  "OR", e.g. find photos in any FOLDER. To
+                                  search subfolders, specify the entire folder
+                                  path, e.g. 'My Folder/Subfolder'. If folder
+                                  name contains a forward slash, use double
+                                  slashes to escape it, e.g. 'My
+                                  Folder//Subfolder' for a folder named 'My
+                                  Folder/Subfolder'.
   --name FILENAME                 Search for photos with filename matching
                                   FILENAME. If more than one --name options is
                                   specified, they are treated as "OR", e.g. find
@@ -818,8 +828,8 @@ Options:
                                   matching any label
   --uti UTI                       Search for photos whose uniform type
                                   identifier (UTI) matches UTI
-  -i, --ignore-case               Case insensitive search for title,
-                                  description, place, keyword, person, or album.
+  -i, --ignore-case               Case insensitive search when used with other
+                                  query options.
   --edited                        Search for photos that have been edited.
   --not-edited                    Search for photos that have not been edited.
   --external-edit                 Search for photos edited in external editor.
@@ -2382,7 +2392,7 @@ Substitution                    Description
 {cr}                            A carriage return: '\r'
 {crlf}                          A carriage return + line feed: '\r\n'
 {tab}                           :A tab: '\t'
-{osxphotos_version}             The osxphotos version, e.g. '0.72.3'
+{osxphotos_version}             The osxphotos version, e.g. '0.73.1'
 {osxphotos_cmd_line}            The full command line used to run osxphotos
 
 The following substitutions may result in multiple values. Thus if specified
@@ -2880,7 +2890,7 @@ The following template field substitutions are availabe for use the templating s
 |{cr}|A carriage return: '\r'|
 |{crlf}|A carriage return + line feed: '\r\n'|
 |{tab}|:A tab: '\t'|
-|{osxphotos_version}|The osxphotos version, e.g. '0.72.3'|
+|{osxphotos_version}|The osxphotos version, e.g. '0.73.1'|
 |{osxphotos_cmd_line}|The full command line used to run osxphotos|
 |{album}|Album(s) photo is contained in|
 |{folder_album}|Folder path + album photo is contained in. e.g. 'Folder/Subfolder/Album' or just 'Album' if no enclosing folder|
@@ -3060,6 +3070,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://yazdanra.com"><img src="https://avatars.githubusercontent.com/u/32798567?v=4?s=75" width="75px;" alt="Yazdan Ranjbar"/><br /><sub><b>Yazdan Ranjbar</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/commits?author=YazdanRa" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/m-reiter"><img src="https://avatars.githubusercontent.com/u/5221258?v=4?s=75" width="75px;" alt="m-reiter"/><br /><sub><b>m-reiter</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/issues?q=author%3Am-reiter" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.mherzberg.de"><img src="https://avatars.githubusercontent.com/u/12444544?v=4?s=75" width="75px;" alt="Michael Herzberg"/><br /><sub><b>Michael Herzberg</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/issues?q=author%3Amherzberg" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
