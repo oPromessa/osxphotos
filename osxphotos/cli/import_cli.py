@@ -1350,23 +1350,34 @@ def import_photo_group(
     Returns:
         tuple of Photo object and error string if any
     """
-    if imported := PhotosLibrary().import_photos(
-        filepaths, skip_duplicate_check=not dup_check
-    ):
-        verbose(
-            f"Imported [filename]{filepaths[0].name}[/] with UUID [uuid]{imported[0].uuid}[/]"
-        )
-        # this assumes the only groups being imported are live, raw+jpeg, bursts
-        # if modified to import arbitrary groups, will need to be updated
-        # to match the associated UUID and image file
-        if len(imported) > 1:
-            logger.warning(f"Warning: imported {len(imported)} images, expected 1")
-        photo = imported[0]
-        return photo, None
-    else:
-        error_str = f"[error]Error importing file [filepath]{filepaths[0].name}[/][/]"
-        echo(error_str, err=True)
-        return None, error_str
+    try:
+        if imported := PhotosLibrary().import_photos(
+            filepaths, skip_duplicate_check=not dup_check
+        ):
+            verbose(
+                f"Imported [filename]{filepaths[0].name}[/] with UUID [uuid]{imported[0].uuid}[/]"
+            )
+            # this assumes the only groups being imported are live, raw+jpeg, bursts
+            # if modified to import arbitrary groups, will need to be updated
+            # to match the associated UUID and image file
+            if len(imported) > 1:
+                logger.warning(f"Warning: imported {len(imported)} images, expected 1")
+            photo = imported[0]
+            return photo, None
+        else:
+            error_str = f"[error]Error importing file [filepath]{filepaths[0].name}[/][/]"
+            echo(error_str, err=True)
+            return None, error_str
+    except Exception as e:
+        # Check for PhotosLibrary and AppleScript timeout
+        # ScriptError: Photos got an error: AppleEvent timed out. (-1712) app='Photos' range=4270-4326
+        if e.__class__.__name__ == 'ScriptError' and 'timed out' in str(e):
+            error_str = f"[error]Error AppleScript timeout: importing file [filepath]{filepaths[0].name}[/][/]"
+            # TODO REMOVE
+            echo(f"[error] DEBUG import: AppleScript timeout: {e}")
+            return None, error_str
+        else:
+            raise  # re-raise exception for other errors
 
 
 def add_photo_to_albums(
