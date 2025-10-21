@@ -24,7 +24,15 @@ from typing import TYPE_CHECKING, Callable, Tuple
 import click
 from rich.console import Console
 from strpdatetime import strpdatetime
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_fixed,
+)
 
+from osxphotos.cli.kill_photos import kill_photos
 from osxphotos.fileutil import FileUtilMacOS
 from osxphotos.markdown_utils import format_markdown_for_console, markdown_to_plaintext
 from osxphotos.photodates import (
@@ -39,8 +47,6 @@ from osxphotos.strpdatetime_parts import fmt_has_date_time_codes
 from .help import filter_help_text_for_sphinx, is_sphinx_running, rich_text
 from .param_types import TimezoneOffset
 
-from osxphotos.cli.kill_photos import kill_photos
-
 assert_macos()
 
 try:
@@ -49,7 +55,8 @@ try:
 except ImportError:
     makelive = None
 
-from photoscript import Photo, PhotosLibrary
+from applescript import ScriptError
+from photoscript import AppleScriptError, Photo, PhotosLibrary
 
 import osxphotos.sqlite3_datetime as sqlite3_datetime
 from osxphotos._constants import (
@@ -134,6 +141,8 @@ FILE_TYPE_SHOULD_STAGE_FILES = 128
 FILE_TYPE_HAS_EDITED_FILE = 256
 FILE_TYPE_SHOULD_RENAME_EDITED = 512
 
+# max retry attempts for methods which use tenacity.retry
+MAX_RETRY_ATTEMPTS = 2
 
 _global_image_counter = 1
 
@@ -1269,7 +1278,7 @@ def import_cli(
     skipped_str = f", [num]{skipped_count}[/] skipped" if resume or skip_dups else ""
     # Notify if import did not process all file groups, e.g. --stop-on-error threshold breached
     not_processed = (
-        len(files_to_import)    # groupcount
+        len(files_to_import)  # groupcount
         - imported_count
         - error_count
         - skipped_count
@@ -1365,16 +1374,20 @@ def import_photo_group(
             photo = imported[0]
             return photo, None
         else:
-            error_str = f"[error]Error importing file [filepath]{filepaths[0].name}[/][/]"
+            error_str = (
+                f"[error]Error importing file [filepath]{filepaths[0].name}[/][/]"
+            )
             echo(error_str, err=True)
             return None, error_str
-    except Exception as e:
+    except ScriptError as e:
         # Check for PhotosLibrary and AppleScript timeout
         # ScriptError: Photos got an error: AppleEvent timed out. (-1712) app='Photos' range=4270-4326
-        if e.__class__.__name__ == 'ScriptError' and 'timed out' in str(e):
+        # TODO REMOVE
+        echo(f"[error] DEBUG import: Exception [{e.__class__.__name__=}]: {e}")
+        # TODO REMOVE
+        # if e.__class__.__name__ == 'ScriptError' and 'timed out' in str(e):
+        if "timed out" in str(e):
             error_str = f"[error]Error AppleScript timeout: importing file [filepath]{filepaths[0].name}[/][/]"
-            # TODO REMOVE
-            echo(f"[error] DEBUG import: AppleScript timeout: {e}")
             return None, error_str
         else:
             raise  # re-raise exception for other errors
@@ -2128,6 +2141,31 @@ def apply_photo_metadata(
         tz_updater.update_photo(photo)
 
 
+# Check for errot "AppleScript timed out" to allow retry
+def is_applescript_timed_out(exception) -> bool:
+    """Check if exception is an AppleScript timed out"""
+    return "timed out" in str(exception)
+
+
+# Recovery step: restart Photos
+def kill_photos_app_before_retry(retry_state: RetryCallState) -> None:
+    """Kill Photos app before retrying after AppleScript timeout"""
+    rich_echo_error(
+        f"[error]DEBUG 3 ⚙️ Fixing after attempt {retry_state.attempt_number}...[/error]"
+    )
+    if kill_photos():
+        rich_echo_error("[warning]Restarted Photos! [/]")
+    else:
+        rich_echo_error("[error]Failed to restart Photos![/]")
+
+
+@retry(
+    stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
+    wait=wait_fixed(2),
+    retry=retry_if_exception(is_applescript_timed_out),
+    before_sleep=kill_photos_app_before_retry,
+    reraise=True,
+)
 def apply_photo_albums(
     album: tuple[str, ...],
     dry_run: bool,
@@ -3315,7 +3353,8 @@ def import_files(
 
                         if stop_on_error and error_count >= stop_on_error:
                             rich_echo_error(
-                                f"[error]Error count exceeded limit, stopping! Last file: [filename]{filepath.name}[/], error count = [num]{error_count}[/]"
+                                "[error]Error count exceeded limit, attempting Photos restart...! "
+                                f" Last file: [filename]{filepath.name}[/], error count = [num]{error_count}[/]"
                             )
                             if kill_photos():
                                 error_count = 0
