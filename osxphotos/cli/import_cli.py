@@ -2151,7 +2151,7 @@ def is_applescript_timed_out(exception) -> bool:
 def kill_photos_app_before_retry(retry_state: RetryCallState) -> None:
     """Kill Photos app before retrying after AppleScript timeout"""
     rich_echo_error(
-        f"[error]DEBUG 3 ⚙️ Fixing after attempt {retry_state.attempt_number}...[/error]"
+        f"[warning] DEBUG 3 ⚙️ Fixing after attempt {retry_state.attempt_number}...[/error]"
     )
     if kill_photos():
         rich_echo_error("[warning]Restarted Photos! [/]")
@@ -3359,7 +3359,7 @@ def import_files(
                             if kill_photos():
                                 error_count = 0
                                 rich_echo_error(
-                                    f"[warning]Restarted Photos! Resetting error count = [num]{error_count}[/]"
+                                    f"[warning] Restarted Photos! Resetting error count = [num]{error_count}[/]"
                                 )
                             else:
                                 raise StopIteration
