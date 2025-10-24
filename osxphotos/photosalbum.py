@@ -125,6 +125,10 @@ class PhotosAlbum:
         self.rich = rich
 
     def add(self, photo: PhotoInfo):
+
+        print(f"DEBUG 5"
+                f"\n\tPhoto UUID: {photo.uuid if photo else 'No photo'}"
+        )        
         photo_ = photoscript.Photo(photo.uuid)
         self.album.add([photo_])
         self.verbose(
@@ -179,6 +183,9 @@ class PhotosAlbumPhotoScript(PhotosAlbum):
     """Add photoscript.Photo objects to album"""
 
     def add(self, photo: Photo):
+        print(f"DEBUG 4"
+                f"\n\tPhoto UUID: {photo.uuid if photo else 'No photo'}"
+        )
         self.album.add([photo])
         self.verbose(
             f"Added {self._format_name(photo.filename)} ({self._format_uuid(photo.uuid)}) to album {self._format_album(self.name)}"

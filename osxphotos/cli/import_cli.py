@@ -1425,6 +1425,11 @@ def add_photo_to_photoinfo_albums(
         verbose(
             f"Adding photo [filename]{filepath.name}[/] to album [filepath]{album_name}[/]"
         )
+        verbose(f"DEBUG 1"
+                f"\n\tPhoto UUID: {photo.uuid if photo else 'No photo'}"
+                f"\n\t{album_name=}"
+                f"\n\t{album_path=}"
+                f"\n\t{albums=}")
         if photo and not dry_run:
             photos_album = PhotosAlbumPhotoScriptByPath(
                 album_path, verbose=verbose, rich=True
@@ -1454,9 +1459,14 @@ def add_photo_to_albums_from_exportdb(
                 verbose(
                     f"Setting albums from export database for [filename]{filepath.name}[/]"
                 )
+                verbose(f"DEBUG 2"
+                    f"\n\tPhoto UUID: {photo.uuid if photo else 'No photo'}")
+
                 return add_photo_to_photoinfo_albums(
                     photo, photoinfo, filepath, verbose, dry_run
                 )
+                # TODO: Check when add_photo_to_photoinfo_albums could return None
+                # causing a crash on function add_photo_to_photoinfo_albums 
         else:
             verbose(
                 f"Could not load metadata from export database for [filename]{filepath.name}[/]"
@@ -2147,6 +2157,11 @@ def apply_photo_albums(
         )
 
     if exportdb:
+        verbose(f"DEBUG 3"
+                f"\n\tPhoto UUID: {photo.uuid if photo else 'No photo'}"
+                f"\n\t{filepath=}"
+                f"\n\t{album=}")
+
         # add photo to any albums defined in the exportdb data
         report_record.albums += add_photo_to_albums_from_exportdb(
             photo, filepath, exportdb, exportdir, exiftool_path, verbose, dry_run
@@ -3309,7 +3324,7 @@ def import_files(
                             if kill_photos():
                                 error_count = 0
                                 rich_echo_error(
-                                    f"[error] Restarted Photos! Resetting error count = [num]{error_count}[/]"
+                                    f"[warning]Restarted Photos! Resetting error count = [num]{error_count}[/]"
                                 )
                             else:
                                 raise StopIteration
