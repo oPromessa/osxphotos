@@ -9,6 +9,7 @@ from osxphotos.platform import is_macos
 from osxphotos.timezones import (
     Timezone,
     convert_offset_timezone_to_etc,
+    etc_tzname_to_etc,
     format_offset_time,
     known_timezone_names,
 )
@@ -133,3 +134,29 @@ def test_convert_offset_timezone_to_etc_invalid_bounds_raises_value_error(
 
 def test_convert_offset_timezone_to_etc_leading_trailing_whitespace_handled():
     assert convert_offset_timezone_to_etc("  GMT-0800 ") == "Etc/GMT+8"
+
+
+def test_convert_abbreviation_to_canonical():
+    """Test for abbreviation to canonical conversion."""
+    tz = Timezone("IDT")
+    assert tz.name == "Asia/Jerusalem"
+
+
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        ("-08", "Etc/GMT+8"),
+        ("+02", "Etc/GMT-2"),
+        ("+2", "Etc/GMT-2"),
+        ("-00", "Etc/GMT"),
+    ],
+)
+def test_etc_tzname_to_etc(input_str, expected):
+    """Test for Etc/GMT tzname to GMT tzname conversion."""
+    assert etc_tzname_to_etc(input_str) == expected
+
+
+def test_etc_tzname_to_etc_bad_input():
+    """Test for Etc/GMT tzname to GMT tzname conversion."""
+    with pytest.raises(ValueError):
+        etc_tzname_to_etc("invalid")

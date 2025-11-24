@@ -58,6 +58,7 @@ from .commentinfo import CommentInfo, LikeInfo
 from .exifinfo import ExifInfo, exifinfo_factory
 from .exiftool import ExifToolCaching, get_exiftool_path
 from .exportoptions import ExportOptions
+from .media_analysis import get_caption, get_media_analysis_results
 from .momentinfo import MomentInfo
 from .personinfo import FaceInfo, PersonInfo
 from .photoexporter import PhotoExporter
@@ -751,6 +752,11 @@ class PhotoInfo:
                 return None
             self._adjustmentinfo = AdjustmentsInfo(plist_file)
             return self._adjustmentinfo
+
+    @property
+    def adjustment_type(self) -> int | None:
+        """Returns adjustment type as int or None if no adjustments"""
+        return self._info.get("hasAdjustments")
 
     @property
     def external_edit(self) -> bool:
@@ -1696,6 +1702,16 @@ class PhotoInfo:
         """Returns fingerprint of original photo as a string or None if not available"""
         return self._info["masterFingerprint"]
 
+    @cached_property
+    def media_analysis(self) -> dict[str, Any]:
+        """Returns media analysis results as a dictionary (Photos 5+)"""
+        return get_media_analysis_results(self)
+
+    @cached_property
+    def ai_caption(self) -> str:
+        """Returns AI generated caption for photo or video (Photos 5+)"""
+        return get_caption(get_media_analysis_results(self)) or ""
+
     def detected_text(
         self, confidence_threshold=TEXT_DETECTION_CONFIDENCE_THRESHOLD
     ) -> list[tuple[str, float]]:
@@ -2118,6 +2134,7 @@ class PhotoInfo:
             dict_data["adjustments"] = (
                 self.adjustments.asdict() if self.adjustments else {}
             )
+            dict_data["adjustment_type"] = self.adjustment_type
             dict_data["burst_album_info"] = [a.asdict() for a in self.burst_album_info]
             dict_data["burst_albums"] = self.burst_albums
             dict_data["burst_default_pick"] = self.burst_default_pick
@@ -2147,6 +2164,8 @@ class PhotoInfo:
             dict_data["screen_recording"] = self.screen_recording
             dict_data["date_original"] = self.date_original
             dict_data["tzname"] = self.tzname
+            dict_data["media_analysis"] = self.media_analysis
+            dict_data["ai_caption"] = self.ai_caption
 
         return dict_data
 

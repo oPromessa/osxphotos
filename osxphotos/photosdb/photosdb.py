@@ -19,6 +19,8 @@ from unicodedata import normalize
 
 from rich import print
 
+from osxphotos.platform import check_and_warn_macos_version
+
 from .._constants import (
     _DB_TABLE_NAMES,
     _MOVIE_TYPE,
@@ -37,7 +39,6 @@ from .._constants import (
     _PHOTOS_5_PROJECT_ALBUM_KIND,
     _PHOTOS_5_ROOT_FOLDER_KIND,
     _PHOTOS_5_SHARED_ALBUM_KIND,
-    _TESTED_OS_VERSIONS,
     _UNKNOWN_PERSON,
     BURST_KEY,
     BURST_PICK_TYPE_NONE,
@@ -52,7 +53,7 @@ from ..personinfo import PersonInfo
 from ..photoinfo import PhotoInfo
 from ..photoquery import QueryOptions, photo_query
 from ..photos_datetime import photos_datetime, photos_datetime_local
-from ..platform import get_macos_version, is_macos
+from ..platform import is_macos
 from ..rich_utils import add_rich_markup_tag
 from ..sqlite_utils import sqlite_db_is_locked, sqlite_open_ro
 from ..unicode import normalize_unicode
@@ -144,19 +145,7 @@ class PhotosDB:
         if dbfile and is_iphoto_library(dbfile):
             raise PhotosDBReadError(f"{dbfile} is an iPhoto library, not Photos")
 
-        # Check OS version
-        system = platform.system()
-        (ver, major, _) = get_macos_version() if is_macos else (None, None, None)
-        if system == "Darwin" and (
-            ((ver, major) not in _TESTED_OS_VERSIONS)
-            and (ver, None) not in _TESTED_OS_VERSIONS
-        ):
-            tested_versions = ", ".join(
-                f"{v}.{m}" for (v, m) in _TESTED_OS_VERSIONS if m is not None
-            )
-            logging.warning(
-                f"WARNING: This module has only been tested with macOS versions [{tested_versions}]: you have {system}, OS version: {ver}.{major}"
-            )
+        check_and_warn_macos_version()
 
         if verbose is None:
             verbose = noop
@@ -1062,7 +1051,8 @@ class PhotosDB:
                     RKVersion.showInLibrary,
                     RKMaster.fileIsReference,
                     RKMaster.importGroupUuid,
-                    RKMaster.fingerprint
+                    RKMaster.fingerprint,
+                    RKVersion.imageTimeZoneName
                     FROM RKVersion, RKMaster
                     WHERE RKVersion.masterUuid = RKMaster.uuid"""
             )
@@ -1095,7 +1085,8 @@ class PhotosDB:
                     RKVersion.showInLibrary,
                     RKMaster.fileIsReference,
                     RKMaster.importGroupUuid,
-                    RKMaster.fingerprint
+                    RKMaster.fingerprint,
+                    RKVersion.imageTimeZoneName
                     FROM RKVersion, RKMaster
                     WHERE RKVersion.masterUuid = RKMaster.uuid"""
             )
@@ -1147,6 +1138,7 @@ class PhotosDB:
         # 43    RKMaster.fileIsReference -- file is reference (imported without copying to Photos library)
         # 44    RKMaster.importGroupUuid -- to get date added from RKImportGroup
         # 45    RKMaster.fingerprint -- fingerprint / hash of the file
+        # 46    RKVersion.imageTimeZoneName -- time zone name of the image
 
         for row in c:
             uuid = row[0]
@@ -1163,12 +1155,13 @@ class PhotosDB:
             self._dbphotos[uuid]["lastmodifieddate"] = photos_datetime_local(row[4])
 
             self._dbphotos[uuid]["imageTimeZoneOffsetSeconds"] = row[9]
-            self._dbphotos[uuid]["imageTimeZoneName"] = None  # Photos 5+
+            self._dbphotos[uuid]["imageTimeZoneName"] = row[46]
             self._dbphotos[uuid]["imageDate_timestamp"] = row[5]
 
             self._dbphotos[uuid]["imageDate"] = photos_datetime(
                 row[5],
                 self._dbphotos[uuid]["imageTimeZoneOffsetSeconds"] or 0,
+                self._dbphotos[uuid]["imageTimeZoneName"] or None,
                 default=True,
             )
 

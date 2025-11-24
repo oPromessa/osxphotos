@@ -160,6 +160,7 @@ class iPhotoDB:
         self._load_folders()
         self._load_albums()
         self._load_keywords()
+        self._load_image_proxies()
         self._load_volumes()
         self._build_photo_paths()
 
@@ -260,14 +261,16 @@ class iPhotoDB:
         for row in results:
             self._db_photos[row["uuid"]] = dict(row)
 
-        # normalize unicode
         for uuid in self._db_photos:
+            # normalize unicode
             self._db_photos[uuid]["title"] = normalize_unicode(
                 self._db_photos[uuid]["title"]
             )
             self._db_photos[uuid]["rollname"] = normalize_unicode(
                 self._db_photos[uuid]["rollname"]
             )
+            # init preview_path (will be loaded by _load_image_proxies)
+            self._db_photos[uuid]["preview_path"] = None
         self.verbose(f"Loaded {len(self._db_photos)} assets from iPhoto library")
 
         # Event notes (pre-iPhoto 9.1)
@@ -714,6 +717,36 @@ class iPhotoDB:
             self._db_photos[uuid]["keywords"].append(normalize_unicode(row["name"]))
         conn.close()
 
+    def _load_image_proxies(self):
+        """Load image proxiesfrom the database"""
+
+        db = self.library_path.joinpath("Database/apdb/ImageProxies.apdb")
+        if not db.exists():
+            logger.warning(f"ImageProxies.apdb not found at {db}")
+            return
+
+        query = """
+            SELECT
+            modelId as modelId,
+            versionUuid as uuid,
+            fullSizePreviewPath as preview_path
+            FROM RKImageProxyState
+        """
+        logger.debug(f"Executing query: {query}")
+
+        conn = sqlite3.connect(db)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        self.verbose("Loading preview images from iPhoto library")
+        results = cursor.execute(query).fetchall()
+        for row in results:
+            uuid = row["uuid"]
+            if uuid not in self._db_photos:
+                # logger.warning(f"Missing uuid {uuid} in _db_library")
+                continue
+            self._db_photos[uuid]["preview_path"] = row["preview_path"]
+        conn.close()
+
     def _load_volumes(self):
         """Load volume data for referenced files"""
         library_db = self.library_path.joinpath("Database/apdb/Library.apdb")
@@ -764,20 +797,27 @@ class iPhotoDB:
 
             # edited path
             if photo["hasadjustments"]:
-                image_path = pathlib.Path(photo["imagepath"])
-                path_edited = self.library_path.joinpath(
-                    "Previews", image_path.parent, uuid
-                )
-                edited_files = list(path_edited.glob("*"))
-                # edited image named with Photo's title not imagepath.stem
-                if edited_files := [
-                    x
-                    for x in edited_files
-                    if normalize_unicode(x.stem) == photo["title"]
-                ]:
-                    photo["path_edited"] = edited_files[0]
+                if photo["preview_path"]:
+                    # preview path should be read from ImageProxies.apdb
+                    photo["path_edited"] = self.library_path.joinpath(
+                        "Previews", photo["preview_path"]
+                    )
                 else:
-                    photo["path_edited"] = ""
+                    # fallback to heuristic to find edited image
+                    image_path = pathlib.Path(photo["imagepath"])
+                    path_edited = self.library_path.joinpath(
+                        "Previews", image_path.parent, uuid
+                    )
+                    edited_files = list(path_edited.glob("*"))
+                    # edited image named with Photo's title not imagepath.stem
+                    if edited_files := [
+                        x
+                        for x in edited_files
+                        if normalize_unicode(x.stem) == photo["title"]
+                    ]:
+                        photo["path_edited"] = edited_files[0]
+                    else:
+                        photo["path_edited"] = ""
             else:
                 photo["path_edited"] = ""
 
@@ -1099,10 +1139,11 @@ class iPhotoPhotoInfo:
     def tzoffset(self) -> int:
         """TZ Offset from GMT in seconds"""
         tzname = self._db._db_photos[self._uuid]["timezone"]
-        if not tzname:
+        try:
+            return int(self.date.utcoffset().total_seconds())
+        except Exception as e:
+            logger.warning(f"Failed to get timezone info for {tzname}: {e}")
             return 0
-        tz = ZoneInfo(tzname)
-        return int(tz.utcoffset(self.date).total_seconds())
 
     @property
     def tzname(self) -> str | None:
@@ -1413,6 +1454,16 @@ class iPhotoPhotoInfo:
             return 0
         return angle_to_exif_orientation(rotation)
 
+    @property
+    def media_analysis(self) -> dict[str, Any]:
+        """Returns media analysis results as a dictionary (Photos 5+)"""
+        return dict()
+
+    @property
+    def ai_caption(self) -> str:
+        """Returns AI generated caption for photo or video (Photos 5+)"""
+        return ""
+
     def export(
         self,
         dest: str,
@@ -1691,6 +1742,8 @@ class iPhotoPhotoInfo:
             dict_data["screen_recording"] = self.screen_recording
             dict_data["date_original"] = self.date_original
             dict_data["tzname"] = self.tzname
+            dict_data["media_analysis"] = self.media_analysis
+            dict_data["ai_caption"] = self.ai_caption
 
         return dict_data
 
