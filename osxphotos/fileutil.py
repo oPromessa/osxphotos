@@ -331,12 +331,11 @@ class FileUtilShUtil(FileUtilMacOS):
 
         return True
 
-    # TODO: Attemp to fix #2017
-    # @classmethod
-    # def utime(cls, path, times):
-    #     """Set the access and modified time of path."""
-    #     path = normalize_fs_path(path)
-    #     os.utime(path, times)
+    @classmethod
+    def utime(cls, path, times):
+        """Set the access and modified time of path."""
+        path = normalize_fs_path(path)
+        os.utime(path, times)
 
 
 class FileUtil(FileUtilShUtil):
