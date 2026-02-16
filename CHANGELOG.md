@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.75.4](https://github.com/RhetTbull/osxphotos/compare/v0.75.3...v0.75.4)
+
+Bug fixes for files with the same name
+
+### 2026-02-15
+
+###3 Added
+
+#### Changed
+
+#### Removed
+
+#### Fixed
+
+- Additional fix for name collision for files with same the name when one of them has been edited. (#2110 and #2045)
+
+#### Contributors
+
+* @RhetTbull [@RhetTbull](https://github.com/rhettbull)
+
 ## [v0.75.3](https://github.com/RhetTbull/osxphotos/compare/v0.75.2...v0.75.3)
 
 Bug fixes for files with the same name
