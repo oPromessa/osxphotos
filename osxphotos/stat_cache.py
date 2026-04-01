@@ -14,6 +14,7 @@ import stat
 import threading
 import time
 
+from .platform import is_macos
 from .unicode import normalize_fs_path
 
 __all__ = ["DirectoryStatCache", "are_same_filesystem"]
@@ -34,15 +35,25 @@ class DirectoryStatCache:
         ttl_seconds: Time-to-live for cached entries in seconds.
     """
 
-    def __init__(self, ttl_seconds: float = 300.0):
+    def __init__(
+        self, ttl_seconds: float = 300.0, case_sensitive: bool | None = None
+    ):
         """Initialize the directory stat cache.
 
         Args:
             ttl_seconds: Time-to-live for cached entries. After this time,
                 entries are considered stale and will be re-fetched.
                 Default is 300 seconds.
+            case_sensitive: Whether filename lookups should be case-sensitive.
+                Defaults to False on macOS to match the behavior of the
+                default case-insensitive APFS volumes used for Photos libraries
+                and local backups.
         """
         self._ttl = ttl_seconds
+        self._case_sensitive = (
+            (not is_macos) if case_sensitive is None else case_sensitive
+        )
+        self._case_sensitive = bool(self._case_sensitive)
         self._cache: dict[str, dict[str, os.stat_result]] = {}
         self._timestamps: dict[str, float] = {}
         self._lock = threading.Lock()
@@ -59,6 +70,22 @@ class DirectoryStatCache:
         accented characters match regardless of NFD/NFC form.
         """
         return normalize_fs_path(filename)
+
+    def _lookup_entry(
+        self, dir_path: str, filename: str
+    ) -> os.stat_result | None:
+        """Look up a cached file entry, with optional case-insensitive fallback."""
+        entries = self._cache.get(dir_path, {})
+        if filename in entries:
+            return entries[filename]
+        if self._case_sensitive:
+            return None
+
+        filename_lower = filename.lower()
+        for cached_name, cached_stat in entries.items():
+            if cached_name.lower() == filename_lower:
+                return cached_stat
+        return None
 
     def _is_stale(self, dir_path: str) -> bool:
         """Check if cached entry is stale."""
@@ -133,7 +160,7 @@ class DirectoryStatCache:
 
         with self._lock:
             self._ensure_directory_cached(dir_path)
-            return self._cache.get(dir_path, {}).get(filename)
+            return self._lookup_entry(dir_path, filename)
 
     def exists(self, filepath: str | pathlib.Path) -> bool:
         """Check if file exists using cached data.
