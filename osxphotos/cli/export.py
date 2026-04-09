@@ -2991,7 +2991,7 @@ def export_photo_to_directory(
                 f"[error]Error exporting photo ([uuid]{photo.uuid}[/uuid]: [filename]{photo.original_filename}[/filename]) as [filepath]{filename}[/filepath]: {e}",
                 err=True,
             )
-            if tries > retry:
+            if tries > retry or not _is_retryable_export_exception(e):
                 results.error.append((str(pathlib.Path(dest) / filename), str(e)))
                 break
             else:
@@ -3014,6 +3014,17 @@ def export_photo_to_directory(
             verbose(f"Touched date on file [filepath]{touched}")
 
     return results
+
+
+def _is_retryable_export_exception(exception: Exception) -> bool:
+    """Return False for deterministic export failures that retries cannot fix."""
+    message = str(exception).lower()
+    non_retryable_markers = (
+        "code=516",
+        "file exists",
+        "because an item with the same name already exists",
+    )
+    return not any(marker in message for marker in non_retryable_markers)
 
 
 def get_filenames_from_template(

@@ -2,13 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.75.6](https://github.com/RhetTbull/osxphotos/compare/v0.75.5...v0.75.6)
+
+Fixed file descriptor leak and typo in README
+
+### 2026-02-26
+
+#### Added
+
+#### Changed
+
+#### Removed
+
+#### Fixed
+
+- Fixed open file descriptor leak in PhotosDB
+- Fixed documentation typo
+
+#### Contributors
+
+* @j3r3miah [@j3r3miah](https://github.com/j3r3miah) for bug fix
+* @bdillahu [@bdillahu](https://github.com/bdillahu) for documentation fix
+
+## [v0.75.5](https://github.com/RhetTbull/osxphotos/compare/v0.75.4...v0.75.5)
+
+Updated dependencies
+
+### 2026-02-15
+
+#### Added
+
+#### Changed
+
+#### Removed
+
+#### Fixed
+
+- Updated dependencies to improve install with homebrew / pip
+
+#### Contributors
+
+* @RhetTbull [@RhetTbull](https://github.com/rhettbull)
+
 ## [v0.75.4](https://github.com/RhetTbull/osxphotos/compare/v0.75.3...v0.75.4)
 
 Bug fixes for files with the same name
 
 ### 2026-02-15
 
-###3 Added
+#### Added
 
 #### Changed
 
