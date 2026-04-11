@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.75.7](https://github.com/RhetTbull/osxphotos/compare/v0.75.6...v0.75.7)
+
+Fix performance on some APFS file systems
+
+### 2026-04-11
+
+#### Added
+
+#### Changed
+
+#### Removed
+
+#### Fixed
+
+- Fix export performance on APFS when file name collisions occur
+
+#### Contributors
+
+* @RhetTbull[@RhetTbull](https://github.com/RhetTbull) for code
+
 ## [v0.75.6](https://github.com/RhetTbull/osxphotos/compare/v0.75.5...v0.75.6)
 
 Fixed file descriptor leak and typo in README
