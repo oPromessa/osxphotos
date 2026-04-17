@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import datetime
 import json
@@ -178,6 +179,8 @@ class PhotoExporter:
         self.photo = photo
         self._render_options = RenderOptions()
         self._verbose = photo._verbose
+        self._photo_json_full: str | None = None
+        self._photo_data_minified: dict[str, t.Any] | None = None
 
         # define functions for adding markup
         self._filepath = add_rich_markup_tag("filepath", rich=False)
@@ -189,6 +192,20 @@ class PhotoExporter:
         self._temp_dir = None
         self._temp_dir_path = None
         self.fileutil = FileUtil
+
+    def _get_photo_json_full(self) -> str:
+        """Return the full photoinfo JSON for this export, cached per photo."""
+        if self._photo_json_full is None:
+            self._photo_json_full = self.photo.json(shallow=False)
+        return self._photo_json_full
+
+    def _get_photo_data_minified(self) -> dict[str, t.Any]:
+        """Return minified full photoinfo data, cached per photo."""
+        if self._photo_data_minified is None:
+            self._photo_data_minified = photoinfo_minify_dict(
+                json.loads(self._get_photo_json_full())
+            )
+        return self._photo_data_minified
 
     def export(
         self,
@@ -223,6 +240,23 @@ class PhotoExporter:
         # temp dir must be initialized before any of the methods called by export() are called
         self._init_temp_dir(options)
 
+        try:
+            return self._export(dest, filename, options)
+        finally:
+            # Explicitly clean up the temp dir rather than relying on
+            # TemporaryDirectory's weakref finalizer. Under Python 3.14's
+            # incremental GC, deferred finalization lets thousands of temp
+            # dirs accumulate during a large export, eventually exhausting
+            # the process file-descriptor limit (#2138).
+            self._cleanup_temp_dir()
+
+    def _export(
+        self,
+        dest,
+        filename,
+        options: ExportOptions,
+    ) -> ExportResults:
+        """Internal export implementation; see export() for docs."""
         verbose = options.verbose or self._verbose
         if verbose and not callable(verbose):
             raise TypeError("verbose must be callable")
@@ -509,6 +543,15 @@ class PhotoExporter:
         )
         self._temp_dir_path = pathlib.Path(self._temp_dir.name)
         return
+
+    def _cleanup_temp_dir(self):
+        """Remove the temp dir immediately instead of waiting for GC."""
+        if self._temp_dir is None:
+            return
+        with contextlib.suppress(Exception):
+            self._temp_dir.cleanup()
+        self._temp_dir = None
+        self._temp_dir_path = None
 
     def _get_edited_filename(self, original_filename):
         """Return the filename for the exported edited photo
@@ -1450,9 +1493,7 @@ class PhotoExporter:
                 last_data = photoinfo_minify_dict(json.loads(rec.photoinfo))
                 # to avoid issues with datetime comparisons, list order
                 # need to deserialize from photo.json() instead of using photo.asdict()
-                current_data = photoinfo_minify_dict(
-                    json.loads(self.photo.json(shallow=False))
-                )
+                current_data = self._get_photo_data_minified()
                 try:
                     diff = dictdiff(last_data, current_data)
                 except Exception as e:
@@ -1471,7 +1512,7 @@ class PhotoExporter:
                 diff = json.dumps(diff, default=_json_default) if diff else None
             else:
                 diff = None
-            rec.photoinfo = self.photo.json(shallow=False)
+            rec.photoinfo = self._get_photo_json_full()
             rec.export_options = options.bit_flags
             rec.src_sig = src_sig
             if not options.ignore_signature:
