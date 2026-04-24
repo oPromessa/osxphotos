@@ -1059,6 +1059,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "dannigee",
+      "name": "dannigee",
+      "avatar_url": "https://avatars.githubusercontent.com/u/221656843?v=4",
+      "profile": "https://github.com/dannigee",
+      "contributions": [
+        "bug",
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

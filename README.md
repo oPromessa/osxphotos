@@ -1029,7 +1029,7 @@ The following template field substitutions are availabe for use the templating s
 |{cr}|A carriage return: '\r'|
 |{crlf}|A carriage return + line feed: '\r\n'|
 |{tab}|:A tab: '\t'|
-|{osxphotos_version}|The osxphotos version, e.g. '0.75.8'|
+|{osxphotos_version}|The osxphotos version, e.g. '0.75.9'|
 |{osxphotos_cmd_line}|The full command line used to run osxphotos|
 |{album}|Album(s) photo is contained in|
 |{folder_album}|Folder path + album photo is contained in. e.g. 'Folder/Subfolder/Album' or just 'Album' if no enclosing folder|
@@ -1222,7 +1222,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Ben-Voris"><img src="https://avatars.githubusercontent.com/u/31499002?v=4?s=75" width="75px;" alt="Ben Voris"/><br /><sub><b>Ben Voris</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/commits?author=Ben-Voris" title="Tests">⚠️</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/steverice"><img src="https://avatars.githubusercontent.com/u/1423851?v=4?s=75" width="75px;" alt="Steve Rice"/><br /><sub><b>Steve Rice</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/commits?author=steverice" title="Tests">⚠️</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/j3r3miah"><img src="https://avatars.githubusercontent.com/u/89774?v=4?s=75" width="75px;" alt="Jeremiah Boyle"/><br /><sub><b>Jeremiah Boyle</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/commits?author=j3r3miah" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bdillahu"><img src="https://avatars.githubusercontent.com/u/2058566?v=4?s=75" width="75px;" alt="bdillahu"/><br /><sub><b>bdillahu</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/commits?author=bdillahu" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/dannigee"><img src="https://avatars.githubusercontent.com/u/221656843?v=4?s=75" width="75px;" alt="dannigee"/><br /><sub><b>dannigee</b></sub></a><br /><a href="https://github.com/RhetTbull/osxphotos/issues?q=author%3Adannigee" title="Bug reports">🐛</a> <a href="https://github.com/RhetTbull/osxphotos/commits?author=dannigee" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
