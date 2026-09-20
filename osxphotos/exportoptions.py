@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import dataclasses
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from ._constants import DEFAULT_PREVIEW_SUFFIX
 from .export_db import ExportDB
 from .fileutil import FileUtil
 from .phototemplate import RenderOptions
+
+if TYPE_CHECKING:
+    from .stat_cache import DirectoryStatCache
 
 # These two classes are in a separate file as classes other than PhotoExporter need to use them
 
@@ -27,6 +30,7 @@ class ExportOptions:
         dry_run: (bool, default=False): set to True to run in "dry run" mode
         edited: (bool, default=False): if True will export the edited version of the photo otherwise exports the original version
         exiftool_flags (list of str): Optional list of flags to pass to exiftool when using exiftool option, e.g ["-m", "-F"]
+        exiftool_path (str): path to exiftool executable
         exiftool: (bool, default = False): if True, will use exiftool to write metadata to export file
         export_as_hardlink: (bool, default=False): if True, will hardlink files instead of copying them
         export_db: (ExportDB): instance of a class that conforms to ExportDB with methods for getting/setting data related to exported files to compare update state
@@ -48,6 +52,7 @@ class ExportOptions:
         preview_suffix (str): Optional string to append to end of filename for preview images
         preview (bool): if True, also exports preview image
         raw_photo (bool, default=False): if True, will also export the associated RAW photo
+        skip_raw_jpeg (bool, default=False): if True, will skip the JPEG component of a RAW+JPEG pair; only the RAW photo will be exported
         render_options (RenderOptions): Optional osxphotos.phototemplate.RenderOptions instance to specify options for rendering templates
         replace_keywords (bool): if True, keyword_template replaces any keywords, otherwise it's additive
         rich (bool): if True, will use rich markup with verbose output
@@ -72,7 +77,8 @@ class ExportOptions:
         tmpdir: (str, default=None): Optional directory to use for temporary files, if None (default) uses system tmp directory
         favorite_rating (bool): if True, set XMP:Rating=5 for favorite images and XMP:Rating=0 for non-favorites
         fix_orientation (bool): if True, will adjust image orientation based on exif data if necessary
-
+        sidecar_template (tuple of tuples): tuple of (template_file, filename_template, options) for user sidecar templates; multiple templates may be specified
+        claim_only (bool): if True, will only claim filename but doesn't export the photo
     """
 
     convert_to_jpeg: bool = False
@@ -81,6 +87,7 @@ class ExportOptions:
     dry_run: bool = False
     edited: bool = False
     exiftool_flags: Optional[list[str]] = None
+    exiftool_path: Optional[str] = None
     exiftool: bool = False
     export_as_hardlink: bool = False
     export_db: Optional[ExportDB] = None
@@ -102,6 +109,7 @@ class ExportOptions:
     preview_suffix: str = DEFAULT_PREVIEW_SUFFIX
     preview: bool = False
     raw_photo: bool = False
+    skip_raw_jpeg: bool = False
     render_options: Optional[RenderOptions] = None
     replace_keywords: bool = False
     rich: bool = False
@@ -121,6 +129,10 @@ class ExportOptions:
     tmpdir: Optional[str] = None
     favorite_rating: bool = False
     fix_orientation: bool = False
+    sidecar_template: Optional[tuple[tuple[str, str, tuple[str, ...]], ...]] = None
+    stat_cache: Optional["DirectoryStatCache"] = None
+    same_filesystem: Optional[bool] = None
+    claim_only: bool = False
 
     def asdict(self):
         return dataclasses.asdict(self)
@@ -216,6 +228,7 @@ class ExportResults:
         "user_written",
         "user_skipped",
         "user_error",
+        "uuids",
     ]
 
     def __init__(
@@ -254,6 +267,7 @@ class ExportResults:
         user_written: list[str] | None = None,
         user_skipped: list[str] | None = None,
         user_error: list[tuple[str, str]] | None = None,
+        uuids: dict[str, str] | None = None,
     ):
         """ExportResults data class to hold results of export.
 
@@ -262,7 +276,9 @@ class ExportResults:
         local_vars = locals()
         self._datetime = datetime.now().isoformat()
         for attr in self.attributes:
-            setattr(self, attr, local_vars.get(attr) or [])
+            setattr(
+                self, attr, local_vars.get(attr) or (dict() if attr == "uuids" else [])
+            )
 
     @property
     def attributes(self) -> list[str]:
@@ -309,11 +325,16 @@ class ExportResults:
     def __iadd__(self, other) -> "ExportResults":
         if type(other) != ExportResults:
             raise TypeError("Can only add ExportResults to ExportResults")
-
         for attribute in self.attributes:
-            setattr(
-                self, attribute, getattr(self, attribute) + getattr(other, attribute)
-            )
+            if attribute == "uuids":
+                # union of dicts
+                self.uuids.update(other.uuids)
+            else:
+                setattr(
+                    self,
+                    attribute,
+                    getattr(self, attribute) + getattr(other, attribute),
+                )
         return self
 
     def __str__(self) -> str:

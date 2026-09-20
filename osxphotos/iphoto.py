@@ -676,6 +676,8 @@ class iPhotoDB:
         # get album hierarchy
         for albums in self._db_albums.values():
             for album in albums:
+                if not album["name"] or album["folder_id"] is None:
+                    continue
                 album["path"] = [
                     *self._db_folders[album["folder_id"]]["folderlist"],
                     album["name"],
@@ -1338,7 +1340,7 @@ class iPhotoPhotoInfo:
     def fingerprint(self) -> str | None:
         """Returns fingerprint of original photo as a string; returns None if not available. On linux, returns None."""
         if not is_macos:
-            logger.warning("fingerprint only supported on macOS")
+            logger.debug("fingerprint only supported on macOS")
             return None
 
         if not self.path:
@@ -1601,7 +1603,7 @@ class iPhotoPhotoInfo:
         except FileNotFoundError:
             # get_exiftool_path raises FileNotFoundError if exiftool not found
             exiftool = None
-            logging.warning(
+            logger.warning(
                 "exiftool not in path; download and install from https://exiftool.org/"
             )
         return exiftool

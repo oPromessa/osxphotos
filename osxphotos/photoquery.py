@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import io
 import pathlib
 import re
@@ -10,7 +11,6 @@ import sys
 from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import bitmath
@@ -28,6 +28,9 @@ if TYPE_CHECKING:
 
 if is_macos:
     import photoscript
+
+# default date for sorting
+DEFAULT_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
 
 __all__ = [
     "IncompatibleQueryOptions",
@@ -140,6 +143,7 @@ class QueryOptions:
         not_shared_moment: search for photos that have not been shared via a shared moment
         shared_library: search for photos that are part of a shared iCloud library
         not_shared_library: search for photos that are not part of a shared iCloud library
+        newest_first: return results in newest first order instead of default oldest first
     """
 
     added_after: Optional[datetime.datetime] = None
@@ -205,6 +209,7 @@ class QueryOptions:
     not_selfie: Optional[bool] = None
     not_shared: Optional[bool] = None
     not_slow_mo: Optional[bool] = None
+    not_spatial: Optional[bool] = None
     not_time_lapse: Optional[bool] = None
     panorama: Optional[bool] = None
     person: Optional[Iterable[str]] = None
@@ -219,6 +224,7 @@ class QueryOptions:
     selfie: Optional[bool] = None
     shared: Optional[bool] = None
     slow_mo: Optional[bool] = None
+    spatial: Optional[bool] = None
     time_lapse: Optional[bool] = None
     title: Optional[Iterable[str]] = None
     to_date: Optional[datetime.datetime] = None
@@ -234,6 +240,7 @@ class QueryOptions:
     not_shared_moment: Optional[bool] = None
     shared_library: Optional[bool] = None
     not_shared_library: Optional[bool] = None
+    newest_first: Optional[bool] = None
 
     def asdict(self):
         return asdict(self)
@@ -275,6 +282,7 @@ def query_options_from_kwargs(**kwargs) -> QueryOptions:
         "uuid",
         "uuid_from_file",
         "year",
+        "newest_first",
     ]
     exclusive = [
         ("burst", "not_burst"),
@@ -300,6 +308,7 @@ def query_options_from_kwargs(**kwargs) -> QueryOptions:
         ("selfie", "not_selfie"),
         ("shared", "not_shared"),
         ("slow_mo", "not_slow_mo"),
+        ("spatial", "not_spatial"),
         ("time_lapse", "not_time_lapse"),
         ("deleted", "not_deleted"),
         ("deleted", "deleted_only"),
@@ -593,6 +602,11 @@ def photo_query(
     elif options.not_portrait:
         photos = [p for p in photos if not p.portrait]
 
+    if options.spatial:
+        photos = [p for p in photos if p.spatial]
+    elif options.not_spatial:
+        photos = [p for p in photos if not p.spatial]
+
     if options.screenshot:
         photos = [p for p in photos if p.screenshot]
     elif options.not_screenshot:
@@ -740,19 +754,14 @@ def photo_query(
                 raise ValueError(f"Invalid query_eval CRITERIA: {e}")
 
     if options.duplicate:
-        no_date = datetime(1970, 1, 1)
-        tz = timezone(timedelta(0))
-        no_date = no_date.astimezone(tz=tz)
-        photos = sorted(
-            [p for p in photos if p.duplicates],
-            key=lambda x: x.date_added or no_date,
-        )
+        sort_options = QueryOptions()
+        photos = sort_photos([p for p in photos if p.duplicates], sort_options)
         # gather all duplicates but ensure each uuid is only represented once
         photodict = OrderedDict()
         for p in photos:
             if p.uuid not in photodict:
                 photodict[p.uuid] = p
-                for d in sorted(p.duplicates, key=lambda x: x.date_added or no_date):
+                for d in sort_photos(p.duplicates, sort_options):
                     if d.uuid not in photodict:
                         photodict[d.uuid] = d
         photos = list(photodict.values())
@@ -825,7 +834,7 @@ def photo_query(
         photos = [p for p in photos if p.date_added and p.date_added < added_before]
 
     if options.added_in_last:
-        added_after = datetime.now() - options.added_in_last
+        added_after = datetime.datetime.now() - options.added_in_last
         added_after = datetime_naive_to_local(added_after)
         photos = [p for p in photos if p.date_added and p.date_added > added_after]
 
@@ -875,7 +884,20 @@ def photo_query(
             seen_uuids[p.uuid] = p
         photos = list(seen_uuids.values())
 
-    return photos
+    return sort_photos(photos, options)
+
+
+def sort_photos(photos: list[PhotoInfo], options: QueryOptions) -> list[PhotoInfo]:
+    """Sort photo list results from photo_query"""
+    return sorted(
+        photos,
+        key=lambda x: (
+            x.date or DEFAULT_DATE,
+            x.date_added or DEFAULT_DATE,
+            x.uuid or "",
+        ),
+        reverse=True if options.newest_first else False,
+    )
 
 
 def filter_photos_by_folder_album_path(

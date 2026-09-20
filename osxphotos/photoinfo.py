@@ -5,6 +5,7 @@ PhotosDB.photos() returns a list of PhotoInfo objects
 from __future__ import annotations
 
 import contextlib
+import copy
 import dataclasses
 import datetime
 import json
@@ -72,7 +73,13 @@ from .searchinfo import SearchInfo
 from .shareinfo import ShareInfo, get_moment_share_info, get_share_info
 from .shareparticipant import ShareParticipant, get_share_participants
 from .uti import get_preferred_uti_extension, get_uti_for_extension
-from .utils import _get_resource_loc, hexdigest, list_directory, path_exists
+from .utils import (
+    _get_resource_loc,
+    find_files_by_prefix,
+    hexdigest,
+    list_directory,
+    path_exists,
+)
 
 if is_macos:
     from osxmetadata import OSXMetaData
@@ -96,6 +103,8 @@ class PhotoInfo:
         self._info: dict[str, Any] = info
         self._db: "osxphotos.PhotosDB" = db
         self._verbose = self._db._verbose
+        self._asdict_cache: dict[bool, dict[str, Any]] = {}
+        self._json_cache: dict[tuple[int | None, bool], str] = {}
 
     @property
     def _exiftool_path(self) -> str | None:
@@ -672,6 +681,20 @@ class PhotoInfo:
             else None
         )
 
+    @cached_property
+    def imported_by(self) -> tuple[str | None, str | None]:
+        """Returns tuple of 'imported by' display name and bundle ID; one or both may be None; Photos 7+ only, on earlier versions returns (None, None)
+
+        For example: ('Photos', 'com.apple.Photos'); ('Camera', 'com.apple.camera'); ('Messages', 'com.apple.MobileSMS')
+        """
+        if self._db._db_version <= _PHOTOS_4_VERSION:
+            return None, None
+
+        return (
+            self._info["imported_by_display_name"],
+            self._info["imported_by_bundle_id"],
+        )
+
     @property
     def project_info(self) -> list[ProjectInfo]:
         """list of ProjectInfo objects representing projects for the photo or None if no projects"""
@@ -742,6 +765,24 @@ class PhotoInfo:
         return plist_file
 
     @property
+    def original_adjustments_path(self) -> pathlib.Path | None:
+        """Returns path to original adjustments file or None if file doesn't exist (for example, Portrait images contain an origial adjustments file)"""
+        if self._db._db_version <= _PHOTOS_4_VERSION:
+            return None
+
+        library = self._db._library_path
+        directory = self._uuid[0]  # first char of uuid
+        aae_file = (
+            pathlib.Path(library)
+            / "originals"
+            / directory
+            / f"{self._uuid}_5.aae"  # There may be other AAE files but the _5 variant is all I've seen
+        )
+        if not aae_file.is_file():
+            return None
+        return aae_file
+
+    @property
     def adjustments(self) -> AdjustmentsInfo | None:
         """Returns AdjustmentsInfo class for adjustment data or None if no adjustments; Photos 5+ only"""
         try:
@@ -752,6 +793,13 @@ class PhotoInfo:
                 return None
             self._adjustmentinfo = AdjustmentsInfo(plist_file)
             return self._adjustmentinfo
+
+    @cached_property
+    def original_adjustments(self) -> AdjustmentsInfo | None:
+        """Returns AdjustmentsInfo class for original adjustment data or None if no adjustments; Photos 5+ only"""
+        if self.original_adjustments_path:
+            return AdjustmentsInfo(self.original_adjustments_path)
+        return None
 
     @property
     def adjustment_type(self) -> int | None:
@@ -963,6 +1011,18 @@ class PhotoInfo:
         return bool(burst_pick_type & BURST_KEY)
 
     @property
+    def burst_key_photo(self) -> PhotoInfo | None:
+        """If a photo is part of a burst group, returns the PhotoInfo object for the key photo of a burst group otherwise None"""
+        if not self.burst:
+            return None
+        if self.burst_key:
+            return self
+        for photo in self.burst_photos:
+            if photo.burst_key:
+                return photo
+        return None
+
+    @property
     def burst_default_pick(self) -> bool:
         """Returns True if photo is a burst image and is the photo that Photos selected as the default image for the burst set, otherwise False"""
         burst_pick_type = (
@@ -1149,20 +1209,25 @@ class PhotoInfo:
         thumb_path = pathlib.Path(self._db._library_path).joinpath(thumb_path)
 
         # find all files that start with uuid in derivative path
-        files = list(derivative_path.glob(f"{self.uuid}*.*"))
+        # skip .THM files (these are actually low-res thumbnails in JPEG format but with .THM extension)
+        if derivative_path.is_dir():
+            derivatives = find_files_by_prefix(
+                derivative_path, self.uuid, ignore_ext=".THM"
+            )
+        else:
+            derivatives = []
 
         # previews may be missing from derivatives path
         # there are what appear to be low res thumbnails in the "masters" subfolder
         if path_exists(thumb_path):
-            files.append(thumb_path)
+            derivatives.append(str(thumb_path))
 
-        # sort by file size, largest first
-        files = sorted(files, reverse=True, key=lambda f: f.stat().st_size)
-
-        # return list of filename but skip .THM files (these are actually low-res thumbnails in JPEG format but with .THM extension)
-        derivatives = [str(filename) for filename in files if filename.suffix != ".THM"]
-        if self.isphoto and len(derivatives) > 1 and derivatives[0].endswith(".mov"):
-            # ensure .mov is first in list as poster image could be larger than the movie preview
+        # ensure .mov is first in list as poster image could be larger than the movie preview
+        if (
+            self.isphoto
+            and len(derivatives) > 1
+            and (derivatives[0].endswith(".mov") or derivatives[0].endswith(".MOV"))
+        ):
             derivatives[1], derivatives[0] = derivatives[0], derivatives[1]
 
         return derivatives
@@ -1248,6 +1313,17 @@ class PhotoInfo:
         return self._info["portrait"]
 
     @property
+    def spatial(self) -> int:
+        """Returns the Apple spatial media type of the photo as an int.
+
+        Returns 0 if the photo is not spatial (a conventional 2D photo) or if
+        the library does not record spatial media type; otherwise returns the
+        raw ZASSET.ZSPATIALTYPE value (1 == native spatial capture,
+        2 == 2D photo converted to spatial via visionOS).
+        """
+        return self._info.get("spatial", 0) or 0
+
+    @property
     def selfie(self) -> bool:
         """Returns True if photo is a selfie (front facing camera), otherwise False"""
         return self._info["selfie"]
@@ -1280,7 +1356,7 @@ class PhotoInfo:
                     except Exception as e:
                         # sometimes the reverse geolocation data is corrupted
                         # and this can cause a UnsupportedArchiver error
-                        logging.warning(
+                        logger.warning(
                             f"Error creating PlaceInfo5 for {self.uuid}: {str(e)}"
                         )
                         self._place = None
@@ -1363,7 +1439,7 @@ class PhotoInfo:
                     duplicates.append(self._db.get_photo(uuid))
         except KeyError:
             # don't expect this to happen as the signature should be in db
-            logging.warning(f"Did not find signature for {self.uuid} in _db_signatures")
+            logger.warning(f"Did not find signature for {self.uuid} in _db_signatures")
         return duplicates
 
     @property
@@ -1651,7 +1727,7 @@ class PhotoInfo:
             except FileNotFoundError:
                 # get_exiftool_path raises FileNotFoundError if exiftool not found
                 exiftool = None
-                logging.warning(
+                logger.warning(
                     "exiftool not in path; download and install from https://exiftool.org/"
                 )
 
@@ -1734,7 +1810,7 @@ class PhotoInfo:
             try:
                 detected_text = self._detected_text()
             except Exception as e:
-                logging.warning(f"Error detecting text in photo {self.uuid}: {e}")
+                logger.warning(f"Error detecting text in photo {self.uuid}: {e}")
                 detected_text = []
 
             self._detected_text_cache[confidence_threshold] = [
@@ -2040,6 +2116,12 @@ class PhotoInfo:
         Note:
             The shallow representation is used internally by export as it contains only the subset of data needed for export.
         """
+        if shallow not in self._asdict_cache:
+            self._asdict_cache[shallow] = self._asdict_uncached(shallow=shallow)
+        return copy.deepcopy(self._asdict_cache[shallow])
+
+    def _asdict_uncached(self, shallow: bool = True) -> dict[str, Any]:
+        """Return uncached dict representation of PhotoInfo object."""
 
         comments = [comment.asdict() for comment in self.comments]
         exif_info = dataclasses.asdict(self.exif_info) if self.exif_info else {}
@@ -2162,10 +2244,15 @@ class PhotoInfo:
             dict_data["shared_library"] = self.shared_library
             dict_data["rating"] = self.rating
             dict_data["screen_recording"] = self.screen_recording
+            dict_data["spatial"] = self.spatial
             dict_data["date_original"] = self.date_original
             dict_data["tzname"] = self.tzname
             dict_data["media_analysis"] = self.media_analysis
             dict_data["ai_caption"] = self.ai_caption
+            dict_data["original_adjustments"] = (
+                self.original_adjustments.asdict() if self.original_adjustments else {}
+            )
+            dict_data["imported_by"] = self.imported_by
 
         return dict_data
 
@@ -2187,6 +2274,10 @@ class PhotoInfo:
             if isinstance(o, (datetime.date, datetime.datetime)):
                 return o.isoformat()
 
+        cache_key = (indent, shallow)
+        if cache_key in self._json_cache:
+            return self._json_cache[cache_key]
+
         dict_data = self.asdict(shallow=True) if shallow else self.asdict(shallow=False)
 
         for k, v in dict_data.items():
@@ -2196,7 +2287,11 @@ class PhotoInfo:
                 continue
             if v and isinstance(v, (list, tuple)) and not isinstance(v[0], dict):
                 dict_data[k] = sorted(v, key=lambda v: v if v is not None else "")
-        return json.dumps(dict_data, sort_keys=True, default=default, indent=indent)
+        json_data = json.dumps(
+            dict_data, sort_keys=True, default=default, indent=indent
+        )
+        self._json_cache[cache_key] = json_data
+        return json_data
 
     def tables(self) -> PhotoTables | None:
         """Return PhotoTables object to provide access database tables associated with this photo (Photos 5+)"""
@@ -2307,7 +2402,7 @@ def frozen_photoinfo_factory(photo: PhotoInfo) -> SimpleNamespace:
             try:
                 detected_text = frozen._detected_text()
             except Exception as e:
-                logging.warning(f"Error detecting text in photo {frozen.uuid}: {e}")
+                logger.warning(f"Error detecting text in photo {frozen.uuid}: {e}")
                 detected_text = []
 
             frozen._detected_text_cache[confidence_threshold] = [

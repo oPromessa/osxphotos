@@ -2,6 +2,7 @@
 
 import datetime
 import locale
+import logging
 import os
 import pathlib
 import re
@@ -9,7 +10,7 @@ import shlex
 import sys
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Tuple
 
 from textx import TextXSyntaxError, metamodel_from_file
 
@@ -30,6 +31,8 @@ from .utils import (
 
 if TYPE_CHECKING:
     from .photoinfo import PhotoInfo
+
+logger = logging.getLogger("osxphotos")
 
 __all__ = [
     "RenderOptions",
@@ -70,17 +73,17 @@ TEMPLATE_SUBSTITUTIONS = {
     "{name}": "Current filename of the photo",
     "{original_name}": "Photo's original filename when imported to Photos",
     "{title}": "Title of the photo",
-    "{descr}": "Description of the photo",
+    "{descr}": "Description (caption) of the photo; alias for {caption}",
+    "{caption}": "Description (caption) of the photo; alias for {descr}",
     "{media_type}": (
-        f"Special media type resolved in this precedence: {', '.join(t for t in MEDIA_TYPE_DEFAULTS)}. "
-        "Defaults to 'photo' or 'video' if no special type. "
-        "Customize one or more media types using format: '{media_type,video=vidéo;time_lapse=vidéo_accélérée}'"
+        f"Special media type resolved in this precedence: {', '.join(t for t in MEDIA_TYPE_DEFAULTS)}. Defaults to 'photo' or 'video' if no special type. Customize one or more media types using format: '{{media_type,video=vidéo;time_lapse=vidéo_accélérée}}'"
     ),
     "{photo_or_video}": "'photo' or 'video' depending on what type the image is. To customize, use default value as in '{photo_or_video,photo=fotos;video=videos}'",
     "{hdr}": "Photo is HDR?; True/False value, use in format '{hdr?VALUE_IF_TRUE,VALUE_IF_FALSE}'",
     "{edited}": "True if photo has been edited (has adjustments), otherwise False; use in format '{edited?VALUE_IF_TRUE,VALUE_IF_FALSE}'",
     "{edited_version}": "True if template is being rendered for the edited version of a photo, otherwise False. ",
     "{favorite}": "Photo has been marked as favorite?; True/False value, use in format '{favorite?VALUE_IF_TRUE,VALUE_IF_FALSE}'",
+    "{burst}": "If photo is a burst photo, returns the stem of the burst's key photo, e.g. 'IMG_1234', otherwise returns no value.",
     "{created}": "Photo's creation date in ISO format, e.g. '2020-03-22'",
     "{created.date}": "Photo's creation date in ISO format, e.g. '2020-03-22'",
     "{created.year}": "4-digit year of photo creation time",
@@ -152,6 +155,8 @@ TEMPLATE_SUBSTITUTIONS = {
     "{exif.camera_make}": "Camera make from original photo's EXIF information as imported by Photos, e.g. 'Apple'",
     "{exif.camera_model}": "Camera model from original photo's EXIF information as imported by Photos, e.g. 'iPhone 6s'",
     "{exif.lens_model}": "Lens model from original photo's EXIF information as imported by Photos, e.g. 'iPhone 6s back camera 4.15mm f/2.2'",
+    "{imported_by.name}": "Display name of the app that imported the photo, e.g. 'Photos', 'Camera', Messages'; may be null",
+    "{imported_by.id}": "Bundle ID of the app that imported the photo, e.g. 'com.apple.Photos', 'com.apple.camera', 'com.apple.MobileSMS'; may be null",
     "{moment}": "The moment title of the photo",
     "{uuid}": "Photo's internal universally unique identifier (UUID) for the photo, a 36-character string unique to the photo, e.g. '128FB4C6-0B16-4E7D-9108-FB2E90DA1546'",
     "{shortuuid}": "A shorter representation of photo's internal universally unique identifier (UUID) for the photo, "
@@ -234,9 +239,7 @@ TEMPLATE_SUBSTITUTIONS_MULTI_VALUED = {
     "{folder_album_project}": "Folder path + album (includes projects as albums) photo is contained in. e.g. 'Folder/Subfolder/Album' or just 'Album' if no enclosing folder",
     "{keyword}": "Keyword(s) assigned to photo",
     "{person}": "Person(s) / face(s) in a photo",
-    "{label}": "Image categorization label associated with a photo (Photos 5+ only). "
-    "Labels are added automatically by Photos using machine learning algorithms to categorize images. "
-    "These are not the same as {keyword} which refers to the user-defined keywords/tags applied in Photos.",
+    "{label}": "Image categorization label associated with a photo (Photos 5+ only). Labels are added automatically by Photos using machine learning algorithms to categorize images. These are not the same as {keyword} which refers to the user-defined keywords/tags applied in Photos.",
     "{label_normalized}": "All lower case version of 'label' (Photos 5+ only)",
     "{comment}": "Comment(s) on shared Photos; format is 'Person name: comment text' (Photos 5+ only)",
     "{exiftool}": "Format: '{exiftool:GROUP:TAGNAME}'; use exiftool (https://exiftool.org) to extract metadata, in form GROUP:TAGNAME, from image.  "
@@ -306,6 +309,7 @@ FILTER_VALUES = {
     "sslice(start:stop:step)": "[s(tring) slice] Slice values in a list using same semantics as Python's string slicing, "
     + "e.g. sslice(1:3):'abcd => 'bc'; sslice(1:4:2): 'abcd' => 'bd', etc. See also slice().",
     "filter(x)": "Filter list of values using predicate x; for example, '{folder_album|filter(contains Events)}' returns only folders/albums containing the word 'Events' in their path.",
+    "path": "Convert values in list into pathlib objects for path manipulation; pathlib properties can be appended and chained. For example '{photo.original_filename|path.stem}' is functionally equivalent to '{original_name}' which doesn't include the extension.",
     "int": "Convert values in list to integer, e.g. 1.0 => 1. If value cannot be converted to integer, remove value from list. "
     + "['1.1', 'x'] => ['1']. See also float.",
     "float": "Convert values in list to floating point number, e.g. 1 => 1.0. If value cannot be converted to float, remove value from list. "
@@ -928,7 +932,7 @@ class PhotoTemplate:
             value = pathlib.Path(self.photo.original_filename).stem
         elif field == "title":
             value = self.photo.title
-        elif field == "descr":
+        elif field in ("descr", "caption"):
             value = self.photo.description
         elif field == "media_type":
             value = self.get_media_type(default)
@@ -959,6 +963,10 @@ class PhotoTemplate:
             value = self.photo.exif_info.camera_model if self.photo.exif_info else None
         elif field == "exif.lens_model":
             value = self.photo.exif_info.lens_model if self.photo.exif_info else None
+        elif field == "imported_by.name":
+            value = self.photo.imported_by[0]
+        elif field == "imported_by.id":
+            value = self.photo.imported_by[1]
         elif field == "moment":
             value = self.photo.moment_info.title if self.photo.moment_info else None
         elif field == "uuid":
@@ -983,6 +991,12 @@ class PhotoTemplate:
                 value = format_str_value(value, subfield)
         elif field.startswith("counter"):
             value = counter.get_counter_value(field, subfield, field_arg)
+        elif field == "burst":
+            value = (
+                pathlib.Path(self.photo.burst_key_photo.original_filename).stem
+                if self.photo.burst and self.photo.burst_key_photo
+                else None
+            )
         else:
             # if here, didn't get a match
             raise ValueError(f"Unhandled template value: {field}")
@@ -1041,7 +1055,10 @@ class PhotoTemplate:
 
         # check that filter name (without subfields or arguments) is valid
         valid_filters = [f.split("(")[0] for f in FILTER_VALUES]
-        if filter_.split(":")[0] not in valid_filters:
+        if (
+            filter_.split(":")[0] not in valid_filters
+            and filter_.split(".")[0] not in valid_filters
+        ):
             raise SyntaxError(f"Unknown filter: {filter_}")
 
         if filter_ in [
@@ -1157,6 +1174,8 @@ class PhotoTemplate:
         elif filter_ == "float":
             # convert value to float
             value = values_to_float(values)
+        elif filter_.startswith("path"):
+            value = get_template_values_pathlib(filter_, values)
         elif filter_.startswith("function:"):
             value = self.get_template_value_filter_function(filter_, args, values)
         else:
@@ -1328,7 +1347,7 @@ class PhotoTemplate:
             properties = field.split(".")
             if len(properties) <= 1:
                 raise ValueError(
-                    "Missing property in {photo} template.  Use in form {photo.property}."
+                    "Missing property in {photo} template. Use in form {photo.property}."
                 )
             obj = self.photo
             for i in range(1, len(properties)):
@@ -1348,11 +1367,18 @@ class PhotoTemplate:
                 values = [property_] if obj else []
             elif isinstance(obj, (str, int, float)):
                 values = [str(obj)]
+            elif isinstance(obj, (datetime.datetime, datetime.date, datetime.time)):
+                values = [obj.isoformat()]
             else:
                 try:
-                    values = [str(o) for o in obj]
+                    _ = iter(obj)
+                    values = [str(o) if o is not None else None for o in obj]
                 except TypeError:
-                    values = [str(obj)]
+                    try:
+                        values = [str(obj)]
+                    except TypeError as e:
+                        logger.warning(f"Error converting value {obj} to str: {e}")
+                        values = []
         elif field == "detected_text":
             values = _get_detected_text(self.photo, confidence=subfield)
         else:
@@ -1790,3 +1816,64 @@ def get_place_value(photo: "PhotoInfo", field: str):  # noqa: F821
             return photo.place.address.iso_country_code or None
     # did not find a match
     raise ValueError(f"Unhandled template value: {field}")
+
+
+def get_template_values_pathlib(filter: str, values: Iterable[Any]) -> list[Any]:
+    """Returns values after applying pathlib conversion and optional chained pathlib.Path properties
+
+    Args:
+        filter: Filter string, optionally in format "path.property1.property2..."
+                where properties are valid Path attributes (e.g., "path.parent.parent")
+        values: Iterable of values to convert to pathlib.Path objects
+
+    Returns:
+        List of converted values (strings or Path properties)
+
+    Raises:
+        SyntaxError: If an invalid pathlib property is specified in the chain
+    """
+    properties = None
+    if "." in filter:
+        parts = filter.split(".")
+        properties = parts[1:]  # Skip the first part which is "path"
+
+        for prop in properties:
+            if not hasattr(pathlib.Path, prop):
+                raise SyntaxError(f"Invalid pathlib property: {prop}")
+
+    result = []
+    for v in values:
+        path_obj = pathlib.Path(str(v))
+        if properties:
+            for prop in properties:
+                path_obj = getattr(path_obj, prop)
+            result.append(path_obj)
+        else:
+            result.append(str(path_obj))
+
+    return result
+
+
+# def get_template_values_strftime(args: List[str], values: Iterable[Any]) -> list[Any]:
+#     """Returns values after applying strftime to an ISO formatted datetime value
+
+#     Args:
+#         args: Arguments to the strftime filter
+#         values: Iterable of values to convert to pathlib.Path objects
+
+#     Returns:
+#         List of converted values
+
+#     Raises:
+#         SyntaxError: If value is not an ISO formatted datetime
+#     """
+#     results = []
+#     for value in values:
+#         try:
+#             dt = datetime.datetime.fromisoformat()
+#         except ValueError:
+#             raise SyntaxError(f"Invalid ISO formatted datetime: {value}")
+
+#         results.append(dt.strftime(*args))
+
+#     return results

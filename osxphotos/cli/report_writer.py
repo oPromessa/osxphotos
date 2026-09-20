@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 import os.path
+import pathlib
 import sqlite3
 import sys
 from abc import ABC, abstractmethod
@@ -20,6 +21,8 @@ from osxphotos.sqlite_utils import sqlite_columns
 
 from .push_results import PushResults
 from .sync_results import SyncResults
+
+EXPORT_REPORT_BATCH_SIZE = os.environ.get("OSXPHOTOS_EXPORT_REPORT_BATCH_SIZE", 100)
 
 __all__ = [
     "ExportReportWriterCSV",
@@ -79,7 +82,7 @@ class ExportReportWriterCSV(ReportWriterABC):
     def __init__(
         self, output_file: Union[str, bytes, os.PathLike], append: bool = False
     ):
-        self.output_file = output_file
+        self.output_file = pathlib.Path(output_file)
         self.append = append
 
         report_columns = [
@@ -113,17 +116,20 @@ class ExportReportWriterCSV(ReportWriterABC):
             "aae_skipped",
         ]
 
+        # write the header if creating a new file
+        write_header = (append and not self.output_file.exists()) or not append
         mode = "a" if append else "w"
         self._output_fh = open(self.output_file, mode)
-
         self._csv_writer = csv.DictWriter(self._output_fh, fieldnames=report_columns)
-        if not append:
+        if write_header:
             self._csv_writer.writeheader()
 
     def write(self, export_results: ExportResults):
         """Write results to the output file"""
         all_results = prepare_export_results_for_writing(export_results)
         for data in list(all_results.values()):
+            # uuid not yet supported in CSV report
+            data.pop("uuid", None)
             self._csv_writer.writerow(data)
         self._output_fh.flush()
 
@@ -185,6 +191,17 @@ class ExportReportWriterJSON(ReportWriterABC):
 class ExportReportWriterSQLite(ReportWriterABC):
     """Write sqlite report file for export data"""
 
+    # Number of records to buffer before committing to reduce commit overhead
+    BATCH_SIZE = EXPORT_REPORT_BATCH_SIZE
+
+    # SQL for batch inserts
+    _INSERT_SQL = (
+        "INSERT INTO report "
+        "(datetime, filename, exported, new, updated, skipped, exif_updated, touched, converted_to_jpeg, sidecar_xmp, sidecar_json, sidecar_exiftool, missing, error, exiftool_warning, exiftool_error, extended_attributes_written, extended_attributes_skipped, cleanup_deleted_file, cleanup_deleted_directory, exported_album, report_id, sidecar_user, sidecar_user_error, user_written, user_skipped, user_error, aae_written, aae_skipped) "  # noqa
+        "VALUES "
+        "(:datetime, :filename, :exported, :new, :updated, :skipped, :exif_updated, :touched, :converted_to_jpeg, :sidecar_xmp, :sidecar_json, :sidecar_exiftool, :missing, :error, :exiftool_warning, :exiftool_error, :extended_attributes_written, :extended_attributes_skipped, :cleanup_deleted_file, :cleanup_deleted_directory, :exported_album, :report_id, :sidecar_user, :sidecar_user_error, :user_written, :user_skipped, :user_error, :aae_written, :aae_skipped);"  # noqa
+    )
+
     def __init__(
         self, output_file: Union[str, bytes, os.PathLike], append: bool = False
     ):
@@ -200,26 +217,37 @@ class ExportReportWriterSQLite(ReportWriterABC):
         )
         self._create_tables()
         self.report_id = self._generate_report_id()
+        self._write_buffer: list[dict[str, Any]] = []
 
     def write(self, export_results: ExportResults):
-        """Write results to the output file"""
+        """Write results to a buffer; commits in batches for better performance"""
 
         all_results = prepare_export_results_for_writing(export_results)
         for data in list(all_results.values()):
             data["report_id"] = self.report_id
-            cursor = self._conn.cursor()
-            cursor.execute(
-                "INSERT INTO report "
-                "(datetime, filename, exported, new, updated, skipped, exif_updated, touched, converted_to_jpeg, sidecar_xmp, sidecar_json, sidecar_exiftool, missing, error, exiftool_warning, exiftool_error, extended_attributes_written, extended_attributes_skipped, cleanup_deleted_file, cleanup_deleted_directory, exported_album, report_id, sidecar_user, sidecar_user_error, user_written, user_skipped, user_error, aae_written, aae_skipped) "  # noqa
-                "VALUES "
-                "(:datetime, :filename, :exported, :new, :updated, :skipped, :exif_updated, :touched, :converted_to_jpeg, :sidecar_xmp, :sidecar_json, :sidecar_exiftool, :missing, :error, :exiftool_warning, :exiftool_error, :extended_attributes_written, :extended_attributes_skipped, :cleanup_deleted_file, :cleanup_deleted_directory, :exported_album, :report_id, :sidecar_user, :sidecar_user_error, :user_written, :user_skipped, :user_error, :aae_written, :aae_skipped);",  # noqa
-                data,
-            )
+            self._write_buffer.append(data)
+
+        if len(self._write_buffer) >= self.BATCH_SIZE:
+            self._flush()
+
+    def _flush(self):
+        """Flush buffered writes to database"""
+        if not self._write_buffer:
+            return
+        cursor = self._conn.cursor()
+        cursor.executemany(self._INSERT_SQL, self._write_buffer)
         self._conn.commit()
+        self._write_buffer.clear()
 
     def close(self):
-        """Close the output file"""
+        """Flush any remaining buffered writes and close the database connection"""
+        self._flush()
         self._conn.close()
+
+    def __del__(self):
+        with suppress(Exception):
+            self._flush()
+            self._conn.close()
 
     def _create_tables(self):
         c = self._conn.cursor()
@@ -363,7 +391,7 @@ class ExportReportWriterSQLite(ReportWriterABC):
 
 def prepare_export_results_for_writing(
     export_results: ExportResults, bool_values: bool = False
-) -> Dict:
+) -> dict[str, dict[str, Any]]:
     """Return all results for writing to report
 
     Args:
@@ -371,7 +399,7 @@ def prepare_export_results_for_writing(
         bool_values: Return a boolean value instead of a integer (e.g. for use with JSON)
 
     Returns:
-        Dict: All results
+        dict: All results
     """
     false = False if bool_values else 0
     true = True if bool_values else 1
@@ -413,6 +441,7 @@ def prepare_export_results_for_writing(
                 "user_error": "",
                 "aae_written": false,
                 "aae_skipped": false,
+                "uuid": export_results.uuids.get(str(result), ""),
             }
 
     for result in export_results.exported:
@@ -545,6 +574,9 @@ class SyncReportWriterCSV(ReportWriterABC):
     ):
         self.output_file = output_file
         self.append = append
+        self.write_header = (
+            append and not pathlib.Path(output_file).exists()
+        ) or not append
         mode = "a" if append else "w"
         self._output_fh = open(self.output_file, mode)
 
@@ -552,7 +584,7 @@ class SyncReportWriterCSV(ReportWriterABC):
         """Write results to the output file"""
         report_columns = sync_results.results_header
         self._csv_writer = csv.DictWriter(self._output_fh, fieldnames=report_columns)
-        if not self.append:
+        if self.write_header:
             self._csv_writer.writeheader()
 
         for data in sync_results.results_list:
@@ -795,10 +827,11 @@ class PushExifReportWriterCSV(ReportWriterABC):
         ]
         self.output_file = output_file
         self.append = append
+        write_header = (append and not pathlib.Path(output_file).exists()) or not append
         mode = "a" if append else "w"
         self._output_fh = open(self.output_file, mode)
         self._csv_writer = csv.DictWriter(self._output_fh, fieldnames=report_columns)
-        if not append:
+        if write_header:
             self._csv_writer.writeheader()
 
     def write(self, uuid: str, original_filename: str, push_results: PushResults):
@@ -1014,10 +1047,7 @@ class PushExifReportWriterSQLite(ReportWriterABC):
         # data = [str(v) if v else "" for v in row]
         cursor = self._conn.cursor()
         cursor.execute(
-            "INSERT INTO report "
-            "(report_id, uuid, original_filename, datetime, filename, written, updated, skipped, missing, warning, error)"
-            "VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO report (report_id, uuid, original_filename, datetime, filename, written, updated, skipped, missing, warning, error)VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (report_id, *data),
         )
         self._conn.commit()

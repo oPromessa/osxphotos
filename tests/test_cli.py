@@ -53,6 +53,13 @@ def _normalize_fs_paths(paths):
     return [normalize_fs_path(p) for p in paths]
 
 
+def get_exiftool_location(path: str | os.PathLike):
+    """Get exiftool location data as lat, lon pair for a photo and live photo component"""
+    exif = ExifTool(path).asdict()
+    lat, lon = exif["Composite:GPSLatitude"], exif["Composite:GPSLongitude"]
+    return lat, lon
+
+
 CLI_PHOTOS_DB = "tests/Test-10.15.7.photoslibrary"
 LIVE_PHOTOS_DB = "tests/Test-Cloud-10.15.1.photoslibrary"
 RAW_PHOTOS_DB = "tests/Test-RAW-10.15.1.photoslibrary"
@@ -69,12 +76,7 @@ IPHOTO_LIBRARY = "tests/Test-iPhoto-9.6.1.photolibrary"
 # my personal library which some tests require
 LOCAL_PHOTOSDB = os.path.expanduser("~/Pictures/Photos Library.photoslibrary")
 
-UUID_SKIP_LIVE_PHOTOKIT = {
-    "D3FA21AA-62B0-41BA-A45E-B9E09369908B": ["IMG_3203_edited.jpeg"],
-    "14B8DE1D-4113-4948-BC11-C7046656C58C": ["IMG_4179.jpeg"],
-}
-
-UUID_DOWNLOAD_MISSING = "C07BB1E1-2F61-4263-AB8E-943FD47CF013"  # IMG_8844.JPG
+UUID_DOWNLOAD_MISSING = "38E8347F-0D43-411E-B797-004C9DCBDA4E"  # IMG_8844.JPG
 
 UUID_FILE = "tests/uuid_from_file.txt"
 SKIP_UUID_FILE = "tests/skip_uuid_from_file.txt"
@@ -92,7 +94,7 @@ CLI_EXPORT_FILENAMES = _normalize_fs_paths(
         "Frítest (2).jpg",
         "Frítest (3).jpg",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (3).jpeg",
         "Frítest.jpg",
         "IMG_1693.tif",
         "IMG_1994.cr2",
@@ -124,8 +126,11 @@ CLI_EXPORT_FILENAMES_DRY_RUN = _normalize_fs_paths(
     [
         "[2020-08-29] AAF035.jpg",
         "DSC03584.dng",
-        "Frítest_edited.jpeg",
         "Frítest.jpg",
+        "Frítest (1).jpg",
+        "Frítest (2).jpg",
+        "Frítest (3).jpg",
+        "Frítest_edited (1).jpeg",
         "IMG_1693.tif",
         "IMG_1994.cr2",
         "IMG_1994.JPG",
@@ -182,7 +187,7 @@ CLI_EXPORT_FILENAMES_EDITED_SUFFIX = _normalize_fs_paths(
         "Frítest (2).jpg",
         "Frítest (3).jpg",
         "Frítest_bearbeiten (1).jpeg",
-        "Frítest_bearbeiten.jpeg",
+        "Frítest_bearbeiten (3).jpeg",
         "Frítest.jpg",
         "IMG_1693.tif",
         "IMG_1994.cr2",
@@ -220,7 +225,7 @@ CLI_EXPORT_FILENAMES_EDITED_SUFFIX_TEMPLATE = _normalize_fs_paths(
         "Frítest (2).jpg",
         "Frítest (3).jpg",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (3).jpeg",
         "Frítest.jpg",
         "IMG_1693.tif",
         "IMG_1994.cr2",
@@ -255,7 +260,7 @@ CLI_EXPORT_FILENAMES_ORIGINAL_SUFFIX = _normalize_fs_paths(
         "[2020-08-29] AAF035_original.jpg",
         "DSC03584_original.dng",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (3).jpeg",
         "Frítest_original (1).jpg",
         "Frítest_original (2).jpg",
         "Frítest_original (3).jpg",
@@ -294,9 +299,9 @@ CLI_EXPORT_FILENAMES_ORIGINAL_SUFFIX_TEMPLATE = _normalize_fs_paths(
         "DSC03584.dng",
         "Frítest (1).jpg",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (2).jpeg",
         "Frítest_original (1).jpg",
-        "Frítest_original.jpg",
+        "Frítest_original (2).jpg",
         "Frítest.jpg",
         "IMG_1693.tif",
         "IMG_1994.cr2",
@@ -370,7 +375,7 @@ CLI_EXPORT_FILENAMES_CONVERT_TO_JPEG = _normalize_fs_paths(
         "Frítest (2).jpg",
         "Frítest (3).jpg",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (3).jpeg",
         "Frítest.jpg",
         "IMG_1693.jpeg",
         "IMG_1994.cr2",
@@ -379,6 +384,42 @@ CLI_EXPORT_FILENAMES_CONVERT_TO_JPEG = _normalize_fs_paths(
         "IMG_1997.JPG",
         "IMG_3092_edited.jpeg",
         "IMG_3092.jpeg",
+        "IMG_4547.jpg",
+        "Jellyfish.MOV",
+        "Jellyfish1.mp4",
+        "Pumkins1.jpg",
+        "Pumkins2.jpg",
+        "Pumpkins3.jpg",
+        "screenshot-really-a-png.jpeg",
+        "St James Park_edited.jpeg",
+        "St James Park.jpg",
+        "Tulips_edited.jpeg",
+        "Tulips.jpg",
+        "wedding_edited.jpeg",
+        "wedding.jpg",
+        "winebottle (1).jpeg",
+        "winebottle.jpeg",
+    ]
+)
+
+CLI_EXPORT_FILENAMES_SKIP_RAW_JPEG = _normalize_fs_paths(
+    [
+        "[2020-08-29] AAF035 (1).jpg",
+        "[2020-08-29] AAF035 (2).jpg",
+        "[2020-08-29] AAF035 (3).jpg",
+        "[2020-08-29] AAF035.jpg",
+        "DSC03584.dng",
+        "Frítest (1).jpg",
+        "Frítest (2).jpg",
+        "Frítest (3).jpg",
+        "Frítest_edited (1).jpeg",
+        "Frítest_edited (3).jpeg",
+        "Frítest.jpg",
+        "IMG_1693.tif",
+        "IMG_1994.cr2",
+        "IMG_1997.cr2",
+        "IMG_3092_edited.jpeg",
+        "IMG_3092.heic",
         "IMG_4547.jpg",
         "Jellyfish.MOV",
         "Jellyfish1.mp4",
@@ -408,7 +449,7 @@ CLI_EXPORT_FILENAMES_CONVERT_TO_JPEG_SKIP_RAW = _normalize_fs_paths(
         "Frítest (2).jpg",
         "Frítest (3).jpg",
         "Frítest_edited (1).jpeg",
-        "Frítest_edited.jpeg",
+        "Frítest_edited (3).jpeg",
         "Frítest.jpg",
         "IMG_1693.jpeg",
         "IMG_1994.JPG",
@@ -1099,7 +1140,7 @@ QUERY_EXIF_DATA_CASE_INSENSITIVE = [
 ]
 EXPORT_EXIF_DATA = [("EXIF:Make", "FUJIFILM", ["Tulips.jpg", "Tulips_edited.jpeg"])]
 
-UUID_LIVE_EDITED = "029A1751-8A59-48FE-B636-E73E760ECDA6"  # IMG_4813.HEIC
+UUID_LIVE_EDITED = "EBD1C1B4-D127-4B3B-9F04-D66F0D2C9AB4"  # IMG_4813.HEIC
 CLI_EXPORT_LIVE_EDITED = _normalize_fs_paths(
     [
         "IMG_4813.HEIC",
@@ -1143,12 +1184,17 @@ UUID_NOT_SCREEN_RECORDING = [
     "DC99FBDD-7A52-4100-A5BB-344131646C30",
 ]
 
+PHOTOS_DB_LIVE_PHOTO = "tests/Test-Media-Types-15.7.2.photoslibrary/"
+UUID_LIVE_PHOTO = "D562F353-7A22-4367-9A7F-153A4D9F149C"  # IMG_4580.HEIC
+LIVE_PHOTO_FILENAME = "IMG_4580.HEIC"
+LIVE_PHOTO_LOCATION = (41, -86)  # location modified for the live photo
+
 
 @pytest.fixture(scope="module")
 def local_photosdb():
     """Return a PhotosDB object for the local Photos library"""
-    if "OSXPHOTOS_TEST_EXPORT_V2" not in os.environ:
-        pytest.skip("OSXPHOTOS_TEST_EXPORT_V2 not set")
+    if "OSXPHOTOS_TEST_LOCAL" not in os.environ:
+        pytest.skip("OSXPHOTOS_TEST_LOCAL not set")
     return osxphotos.PhotosDB(dbfile=LOCAL_PHOTOSDB)
 
 
@@ -2382,6 +2428,34 @@ def test_export_exiftool():
 
 
 @pytest.mark.skipif(exiftool is None, reason="exiftool not installed")
+def test_export_exiftool_live_photo():
+    """Test that location data for Live Photo gets exported correctly (#2027)"""
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_LIVE_PHOTO),
+                ".",
+                "-V",
+                "--exiftool",
+                "--uuid",
+                UUID_LIVE_PHOTO,
+            ],
+        )
+        assert result.exit_code == 0
+        live_photo_file = pathlib.Path(LIVE_PHOTO_FILENAME)
+        live_video_file = live_photo_file.with_suffix(".mov")
+        assert live_photo_file.is_file()
+        assert live_video_file.is_file()
+        assert get_exiftool_location(live_photo_file) == LIVE_PHOTO_LOCATION
+        assert get_exiftool_location(live_video_file) == LIVE_PHOTO_LOCATION
+
+
+@pytest.mark.skipif(exiftool is None, reason="exiftool not installed")
 def test_export_exiftool_rating_iphoto():
     """Test that with iPhoto library, XMP:Rating is written to file, #1353"""
     runner = CliRunner()
@@ -3129,6 +3203,49 @@ def test_export_convert_to_jpeg_skip_raw():
         assert result.exit_code == 0
         files = glob.glob("*")
         assert sorted(files) == sorted(CLI_EXPORT_FILENAMES_CONVERT_TO_JPEG_SKIP_RAW)
+
+
+def test_export_skip_raw_jpeg():
+    """test --skip-raw-jpeg"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "-V",
+                "--skip-raw-jpeg",
+            ],
+        )
+        assert result.exit_code == 0
+        files = glob.glob("*")
+        assert sorted(files) == sorted(CLI_EXPORT_FILENAMES_SKIP_RAW_JPEG)
+
+
+def test_export_skip_raw_jpeg_mutually_exclusive_with_skip_raw():
+    """test --skip-raw-jpeg and --skip-raw are mutually exclusive"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "--skip-raw",
+                "--skip-raw-jpeg",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "Incompatible export options" in result.output
 
 
 def test_export_duplicate():
@@ -4017,9 +4134,7 @@ def test_export_aae_update():
         )
         assert result.exit_code == 0
         assert "Error" not in result.output
-        assert re.findall(
-            r"Skipped up to date file (.*\.AAE)", result.output, re.MULTILINE
-        )
+        assert "Skipped up to date file" not in result.output
 
 
 def test_export_sidecar():
@@ -4327,8 +4442,9 @@ def test_export_sidecar_update():
             ],
         )
         assert result.exit_code == 0
-        assert "Skipped up to date XMP sidecar" in result.output
         assert "Writing JSON sidecar" in result.output
+        assert "Writing XMP sidecar" not in result.output
+        assert "Skipped up to date XMP sidecar" not in result.output
 
         # run update again, no sidecar files should update
         result = runner.invoke(
@@ -4346,8 +4462,10 @@ def test_export_sidecar_update():
             ],
         )
         assert result.exit_code == 0
-        assert "Skipped up to date XMP sidecar" in result.output
-        assert "Skipped up to date JSON sidecar" in result.output
+        assert "Writing XMP sidecar" not in result.output
+        assert "Writing JSON sidecar" not in result.output
+        assert "Skipped up to date XMP sidecar" not in result.output
+        assert "Skipped up to date JSON sidecar" not in result.output
 
         # touch a file and export again
         ts = datetime.datetime.now().timestamp() + 1000
@@ -4369,7 +4487,8 @@ def test_export_sidecar_update():
         )
         assert result.exit_code == 0
         assert "Writing XMP sidecar" in result.output
-        assert "Skipped up to date JSON sidecar" in result.output
+        assert "Writing JSON sidecar" not in result.output
+        assert "Skipped up to date JSON sidecar" not in result.output
 
         # run update again, no sidecar files should update
         result = runner.invoke(
@@ -4387,8 +4506,10 @@ def test_export_sidecar_update():
             ],
         )
         assert result.exit_code == 0
-        assert "Skipped up to date XMP sidecar" in result.output
-        assert "Skipped up to date JSON sidecar" in result.output
+        assert "Writing XMP sidecar" not in result.output
+        assert "Writing JSON sidecar" not in result.output
+        assert "Skipped up to date XMP sidecar" not in result.output
+        assert "Skipped up to date JSON sidecar" not in result.output
 
         # run update again with updated metadata, forcing update
         result = runner.invoke(
@@ -5744,7 +5865,7 @@ def test_export_update_complex():
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_live_edited():
@@ -6066,6 +6187,82 @@ def test_export_update_only_new():
         )
         assert result.exit_code == 0
         assert "exported: 0" in result.output
+
+
+@pytest.mark.usefixtures("set_tz_pacific")
+def test_export_update_only_new_cleanup():
+    """test --update --only-new --cleanup"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        # basic export
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "-V",
+                "--to-date",
+                "2020-12-20T18:33:41.766684-08:00",
+            ],
+        )
+        assert result.exit_code == 0
+
+        # --update with --only-new --dry-run
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "-V",
+                "--dry-run",
+                "--update",
+                "--only-new",
+                "--cleanup",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "exported: 7" in result.output
+
+        # --update with --only-new
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "-V",
+                "--update",
+                "--only-new",
+                "--cleanup",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "exported: 7" in result.output
+        assert "Deleted: 0 files, 0 directories" in result.output
+
+        # --update with --only-new, should export nothing
+        # but add a file so --cleanup deletes something
+        pathlib.Path("foo.txt").touch()
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, PHOTOS_DB_15_7),
+                ".",
+                "-V",
+                "--update",
+                "--only-new",
+                "--cleanup",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "exported: 0" in result.output
+        assert "Deleted: 1 file, 0 directories" in result.output
 
 
 def test_export_update_no_db():
@@ -6986,6 +7183,39 @@ def test_export_report():
         )
 
 
+def test_export_report_append_new():
+    """test export with --report --append on new report file (#2033)"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        # test report creation
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "-F",
+                "--uuid",
+                UUID_REPORT[0]["uuid"],
+                "--report",
+                "report.csv",
+                "--append",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Wrote export report" in result.output
+        assert os.path.exists("report.csv")
+        with open("report.csv", "r") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        filenames = [str(pathlib.Path(row["filename"]).name) for row in rows]
+        assert sorted(filenames) == sorted(UUID_REPORT[0]["filenames"])
+
+
 def test_export_report_json():
     """test export with --report option for JSON report"""
 
@@ -7332,6 +7562,65 @@ def test_export_cleanup():
         assert "Deleted: 2 files, 1 directory" in result.output
         assert not pathlib.Path("./delete_me.txt").is_file()
         assert not pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+
+def test_export_cleanup_ignore_dot_files():
+    """test export with --cleanup flag and ensure dot files are ignored"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+        with open(".do_not_delete_me", "w") as fd:
+            fd.write("do_not_delete_me!")
+        assert pathlib.Path("./.do_not_delete_me").is_file()
+
+        # run cleanup with dry-run
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup",
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Deleted: 2 files, 0 directories" in result.output
+        assert pathlib.Path("./delete_me.txt").is_file()
+        assert pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+        # run cleanup without dry-run
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup",
+            ],
+        )
+        assert "Deleted: 2 files, 1 directory" in result.output
+        assert not pathlib.Path("./delete_me.txt").is_file()
+        assert not pathlib.Path("./foo/delete_me_too.txt").is_file()
+        assert pathlib.Path("./.do_not_delete_me").is_file()
 
 
 def test_export_cleanup_report():
@@ -7933,6 +8222,162 @@ def test_export_cleanup_osxphotos_keep_keep():
         assert pathlib.Path("./report.db").is_file()
 
 
+def test_export_cleanup_command():
+    """test export with --cleanup-command flag"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+
+        # run cleanup-command with --dry-run
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing: {filepath|shell_quote}",
+                "--cleanup-command",
+                "rm {filepath|shell_quote}",
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code == 0
+        assert f"Removing: {os.path.join(os.getcwd(),'delete_me.txt')}" in result.stdout
+        assert pathlib.Path("./delete_me.txt").is_file()
+        assert pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing: {filepath|shell_quote}",
+                "--cleanup-command",
+                "rm {filepath|shell_quote}",
+            ],
+        )
+        assert f"Removing: {os.path.join(os.getcwd(),'delete_me.txt')}" in result.stdout
+        assert not pathlib.Path("./delete_me.txt").is_file()
+        assert not pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+
+def test_export_cleanup_command_cleanup():
+    """test export with --cleanup-command and --cleanup flags"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+
+        # run cleanup-command with --dry-run
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing: {filepath|shell_quote}",
+                "--cleanup",
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code == 0
+        assert f"Removing: {os.path.join(os.getcwd(),'delete_me.txt')}" in result.stdout
+        assert pathlib.Path("./delete_me.txt").is_file()
+        assert pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing: {filepath|shell_quote}",
+                "--cleanup",
+            ],
+        )
+        assert f"Removing: {os.path.join(os.getcwd(),'delete_me.txt')}" in result.stdout
+        assert not pathlib.Path("./delete_me.txt").is_file()
+        assert not pathlib.Path("./foo/delete_me_too.txt").is_file()
+
+
+def test_export_cleanup_command_error():
+    """test export with --cleanup-command with errors"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing: {filepath|shell_quote}",
+                "--cleanup-command",
+                "false {filepath|shell_quote}",
+            ],
+        )
+        assert result.stdout.count("Removing:") == 1
+        assert result.exit_code != 0
+
+
 def test_save_load_config():
     """test --save-config, --load-config"""
 
@@ -7975,7 +8420,8 @@ def test_save_load_config():
         )
         assert result.exit_code == 0
         assert "Loaded options from file" in result.output
-        assert "Skipped up to date XMP sidecar" in result.output
+        assert "Writing XMP sidecar" not in result.output
+        assert "Skipped up to date XMP sidecar" not in result.output
 
         # test overwrite existing config file
         result = runner.invoke(
@@ -8032,6 +8478,92 @@ def test_save_load_config():
         assert result.exit_code == 0
         assert "Writing JSON sidecar" in result.output
         assert "Writing XMP sidecar" not in result.output
+
+
+def test_export_cleanup_command_error_break():
+    """test export with --cleanup-command with errors and --cleanup-command-error=break"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing1: {filepath|shell_quote}",
+                "--cleanup-command",
+                "false {filepath|shell_quote}",
+                "--cleanup-command",
+                "echo Removing2: {filepath|shell_quote}",
+                "--cleanup-command-error",
+                "break",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Removing1" in result.stdout
+        assert "Removing2" not in result.stdout
+
+
+def test_export_cleanup_command_error_continue():
+    """test export with --cleanup-command with errors and --cleanup-command-error=continue"""
+
+    runner = CliRunner()
+    cwd = os.getcwd()
+    # pylint: disable=not-context-manager
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            export, ["--library", os.path.join(cwd, CLI_PHOTOS_DB), ".", "-V"]
+        )
+        assert result.exit_code == 0
+
+        # create 2 files and a directory
+        with open("delete_me.txt", "w") as fd:
+            fd.write("delete me!")
+        os.mkdir("./foo")
+        with open("foo/delete_me_too.txt", "w") as fd:
+            fd.write("delete me too!")
+        assert pathlib.Path("./delete_me.txt").is_file()
+
+        result = runner.invoke(
+            export,
+            [
+                "--library",
+                os.path.join(cwd, CLI_PHOTOS_DB),
+                ".",
+                "-V",
+                "--update",
+                "--cleanup-command",
+                "echo Removing1: {filepath|shell_quote}",
+                "--cleanup-command",
+                "false {filepath|shell_quote}",
+                "--cleanup-command",
+                "echo Removing2: {filepath|shell_quote}",
+                "--cleanup-command-error",
+                "continue",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Removing1" in result.stdout
+        assert "Removing2" in result.stdout
 
 
 def test_load_config_library():
@@ -8926,7 +9458,7 @@ def test_export_jpeg_ext_convert_to_jpeg_movie():
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT_V2" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL_V2" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_burst_folder_album(local_photosdb):
@@ -8965,7 +9497,7 @@ def test_export_burst_folder_album(local_photosdb):
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT_V2" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL_V2" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_burst_uuid(local_photosdb: osxphotos.PhotosDB):
@@ -9013,7 +9545,7 @@ def test_export_burst_uuid(local_photosdb: osxphotos.PhotosDB):
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_download_missing_file_exists():
@@ -9060,7 +9592,7 @@ def test_export_download_missing_file_exists():
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_download_missing_preview():
@@ -9092,7 +9624,7 @@ def test_export_download_missing_preview():
 
 
 @pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT" not in os.environ,
+    "OSXPHOTOS_TEST_LOCAL" not in os.environ,
     reason="Skip if not running on author's personal library.",
 )
 def test_export_download_missing_preview_applescript():
@@ -9120,40 +9652,6 @@ def test_export_download_missing_preview_applescript():
         )
         assert result.exit_code == 0
         assert "exported: 2" in result.output
-
-
-@pytest.mark.skipif(
-    "OSXPHOTOS_TEST_EXPORT" not in os.environ,
-    reason="Skip if not running on author's personal library.",
-)
-def test_export_skip_live_photokit():
-    """test that --skip-live works with --use-photokit (issue #537)"""
-
-    runner = CliRunner()
-    cwd = os.getcwd()
-    # pylint: disable=not-context-manager
-    for uuid in UUID_SKIP_LIVE_PHOTOKIT:
-        with runner.isolated_filesystem():
-            result = runner.invoke(
-                export,
-                [
-                    ".",
-                    "--library",
-                    os.path.join(cwd, LOCAL_PHOTOSDB),
-                    "-V",
-                    "-F",
-                    "--uuid",
-                    uuid,
-                    "--use-photos-export",
-                    "--use-photokit",
-                    "--skip-live",
-                    "--skip-original-if-edited",
-                    "--convert-to-jpeg",
-                ],
-            )
-            assert result.exit_code == 0
-            files = [str(p) for p in pathlib.Path(".").glob("IMG*")]
-            assert sorted(files) == sorted(UUID_SKIP_LIVE_PHOTOKIT[uuid])
 
 
 def test_query_name():

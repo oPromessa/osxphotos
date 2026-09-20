@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>clientStates</key>
+	<dict>
+		<key>com.apple.Photos</key>
+		<dict>
+			<key>_kMDItemStateInfo_com.apple.Photos.search</key>
+			<data>
+			YnBsaXN0MDDTAQIDBAUGUXZRdFFpEAEjQcftLQs8NPRfECQwMkJB
+			MUY2OC0yRDBGLTQ1ODgtQUU3MC1GRDZGQ0EzNUE2RTIIDxETFRcg
+			AAAAAAAAAQEAAAAAAAAABwAAAAAAAAAAAAAAAAAAAEc=
+			</data>
+		</dict>
+	</dict>
+	<key>cookie</key>
+	<string>29120DD4-4983-4AA6-A717-96C62591DCC8</string>
+	<key>deferSyncCount</key>
+	<integer>1</integer>
+	<key>journalSerialNumber</key>
+	<integer>47</integer>
+	<key>linkedTimestamps</key>
+	<dict>
+		<key>com.apple.Photos</key>
+		<data>
+		7S2P+QjakIA=
+		</data>
+	</dict>
+	<key>syncCount</key>
+	<integer>22</integer>
+	<key>version</key>
+	<integer>1</integer>
+</dict>
+</plist>

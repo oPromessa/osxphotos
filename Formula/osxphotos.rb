@@ -15,6 +15,12 @@ class Osxphotos < Formula
     virtualenv_create(libexec, "python3")
     system libexec/"bin/python", "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"
     system libexec/"bin/python", "-m", "pip", "install", buildpath.to_s
+
+    # Remove whenever's Rust extension to avoid Homebrew dylib relinking
+    # failure (Mach-O header too small for rewritten install name).
+    # The whenever package falls back to its pure-Python implementation.
+    rm Dir[libexec/"lib/python*/site-packages/whenever/_whenever*.so"]
+
     bin.install_symlink libexec/"bin/osxphotos"
   end
 end

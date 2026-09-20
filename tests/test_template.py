@@ -1,5 +1,6 @@
-""" Test template.py """
+"""Test template.py"""
 
+import datetime
 import os
 import pathlib
 import re
@@ -173,6 +174,7 @@ TEMPLATE_VALUES = {
     "{title}": "Glen Ord",
     "{title[ ,]}": "GlenOrd",
     "{descr}": "Jack Rose Dining Saloon",
+    "{caption}": "Jack Rose Dining Saloon",
     "{created}": "2020-02-04",
     "{created.date}": "2020-02-04",
     "{created.year}": "2020",
@@ -1429,3 +1431,41 @@ def test_null_template(photosdb):
     template = "{var:test,{title,}}Foo-{%test,}-Bar"
     rendered, _ = photo.render_template(template)
     assert rendered[0] == "Foo--Bar"
+
+
+def test_path(photosdb_places):
+    """Test path filter"""
+    photo = photosdb_places.photos(uuid=[UUID_DICT["place_dc"]])[0]
+    rendered, _ = photo.render_template("{photo.original_filename|path.name}")
+    assert rendered == ["IMG_1064.JPEG"]
+
+
+def test_path_parent(photosdb_places):
+    """Test path filter with a path"""
+    photo = photosdb_places.photos(uuid=[UUID_DICT["place_dc"]])[0]
+    rendered, _ = photo.render_template("{photo.path|path.parent}")
+    assert len(rendered) == 1
+    assert rendered[0].endswith(
+        "Test-Places-Catalina-10_15_7.photoslibrary/originals/1"
+    )
+
+
+def test_path_chained(photosdb_places):
+    """Test path filter with chained properties"""
+    photo = photosdb_places.photos(uuid=[UUID_DICT["place_dc"]])[0]
+    rendered, _ = photo.render_template("{photo.path|path.parent.parent.name}")
+    assert rendered == ["originals"]
+
+
+def test_path_invalid_property(photosdb_places):
+    """Test path filter with chained properties"""
+    photo = photosdb_places.photos(uuid=[UUID_DICT["place_dc"]])[0]
+    with pytest.raises(SyntaxError):
+        rendered, _ = photo.render_template("{photo.path|path.parent.foo}")
+
+
+def test_datetime(photosdb_places):
+    """Test datetime values for photo template"""
+    photo = photosdb_places.photos(uuid=[UUID_DICT["place_dc"]])[0]
+    rendered, _ = photo.render_template("{photo.date_added}")
+    assert datetime.datetime.fromisoformat(rendered[0])

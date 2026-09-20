@@ -15,8 +15,9 @@ from osxphotos.platform import check_and_warn_macos_version, is_macos
 from .about import about
 from .albums import albums
 from .cli_params import DEBUG_OPTIONS, VERSION_OPTION
-from .common import OSXPHOTOS_HIDDEN
+from .common import OSXPHOTOS_HIDDEN, install_crash_reporter
 from .compare import compare
+from .dbversion import dbversion
 from .debug_dump import debug_dump
 from .docs import docs_command
 from .dump import dump
@@ -35,6 +36,7 @@ from .persons import persons
 from .places import places
 from .query import query
 from .repl import repl
+from .shell_completion import install_shell_completion
 from .snap_diff import diff, snap
 from .template_repl import template_repl
 from .theme import theme
@@ -146,6 +148,7 @@ commands = [
     about,
     albums,
     compare,
+    dbversion,
     debug_dump,
     diff,
     docs_command,
@@ -157,6 +160,7 @@ commands = [
     help,
     info,
     install,
+    install_shell_completion,
     keywords,
     labels,
     list_libraries,
@@ -189,4 +193,5 @@ if is_macos:
     ]
 
 for command in commands:
+    install_crash_reporter(command)
     cli_main.add_command(command)

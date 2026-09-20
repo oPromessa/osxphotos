@@ -262,6 +262,11 @@ IGNORE_CASE_OPTION = click.Option(
     is_flag=True,
     help="Case insensitive search when used with other query options.",
 )
+NEWEST_FIRST_OPTION = click.Option(
+    ["--newest-first"],
+    is_flag=True,
+    help="Process photos in newest first order; default is oldest first (based on photo creation date).",
+)
 
 _LIMITED_QUERY_OPTIONS_DICT = {
     "--album": ALBUM_OPTION,
@@ -480,6 +485,16 @@ _QUERY_PARAMETERS_DICT = {
         is_flag=True,
         help="Search for photos that are not Apple portrait mode photos.",
     ),
+    "--spatial": click.Option(
+        ["--spatial"],
+        is_flag=True,
+        help="Search for Apple spatial media (e.g. spatial photos as captured or displayed by Apple Vision Pro).",
+    ),
+    "--not-spatial": click.Option(
+        ["--not-spatial"],
+        is_flag=True,
+        help="Search for photos that are not Apple spatial media.",
+    ),
     "--screenshot": click.Option(
         ["--screenshot"], is_flag=True, help="Search for screenshot photos."
     ),
@@ -696,6 +711,7 @@ _QUERY_PARAMETERS_DICT = {
         is_flag=True,
         help="Search for photos that are not part of a shared library",
     ),
+    "--newest-first": NEWEST_FIRST_OPTION,
     "--regex": click.Option(
         ["--regex"],
         metavar="REGEX TEMPLATE",

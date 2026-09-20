@@ -64,6 +64,7 @@ Valid filters are:
 * `slice(start:stop:step)`: Slice list using same semantics as Python's list slicing, e.g. slice(1:3): ['a', 'b', 'c', 'd'] => ['b', 'c']; slice(1:4:2): ['a', 'b', 'c', 'd'] => ['b', 'd']; slice(1:): ['a', 'b', 'c', 'd'] => ['b', 'c', 'd']; slice(:-1): ['a', 'b', 'c', 'd'] => ['a', 'b', 'c']; slice(::-1): ['a', 'b', 'c', 'd'] => ['d', 'c', 'b', 'a']. See also sslice().
 * `sslice(start:stop:step)`: [s(tring) slice] Slice values in a list using same semantics as Python's string slicing, e.g. sslice(1:3):'abcd => 'bc'; sslice(1:4:2): 'abcd' => 'bd', etc. See also slice().
 * ``filter(x)``\ : Filter list of values using predicate x; for example, '{folder_album|filter(contains Events)}' returns only folders/albums containing the word 'Events' in their path.
+* ``path``\ : Convert values in list into pathlib objects for path manipulation; pathlib properties can be appended and chained. For example '{photo.original_filename|path.stem}' is functionally equivalent to '{original_name}' which doesn't include the extension.
 * ``int``\ : Convert values in list to integer, e.g. 1.0 => 1. If value cannot be converted to integer, remove value from list. ['1.1', 'x'] => ['1']. See also float.
 * ``float``\ : Convert values in list to floating point number, e.g. 1 => 1.0. If value cannot be converted to float, remove value from list. ['1', 'x'] => ['1.0']. See also int.
 
@@ -189,7 +190,9 @@ Template Substitutions
    * - {title}
      - Title of the photo
    * - {descr}
-     - Description of the photo
+     - Description (caption) of the photo; alias for {caption}
+   * - {caption}
+     - Description (caption) of the photo; alias for {descr}
    * - {media_type}
      - Special media type resolved in this precedence: selfie, time_lapse, panorama, slow_mo, screenshot, screen_recording, portrait, live_photo, burst, photo, video. Defaults to 'photo' or 'video' if no special type. Customize one or more media types using format: '{media_type,video=vidéo;time_lapse=vidéo_accélérée}'
    * - {photo_or_video}
@@ -202,6 +205,8 @@ Template Substitutions
      - True if template is being rendered for the edited version of a photo, otherwise False.
    * - {favorite}
      - Photo has been marked as favorite?; True/False value, use in format '{favorite?VALUE_IF_TRUE,VALUE_IF_FALSE}'
+   * - {burst}
+     - If photo is a burst photo, returns the stem of the burst's key photo, e.g. 'IMG_1234', otherwise returns no value.
    * - {created}
      - Photo's creation date in ISO format, e.g. '2020-03-22'
    * - {created.date}
@@ -320,6 +325,10 @@ Template Substitutions
      - Camera model from original photo's EXIF information as imported by Photos, e.g. 'iPhone 6s'
    * - {exif.lens_model}
      - Lens model from original photo's EXIF information as imported by Photos, e.g. 'iPhone 6s back camera 4.15mm f/2.2'
+   * - {imported_by.name}
+     - Display name of the app that imported the photo, e.g. 'Photos', 'Camera', Messages'; may be null
+   * - {imported_by.id}
+     - Bundle ID of the app that imported the photo, e.g. 'com.apple.Photos', 'com.apple.camera', 'com.apple.MobileSMS'; may be null
    * - {moment}
      - The moment title of the photo
    * - {uuid}
@@ -369,7 +378,7 @@ Template Substitutions
    * - {tab}
      - :A tab: '\t'
    * - {osxphotos_version}
-     - The osxphotos version, e.g. '0.74.1'
+     - The osxphotos version, e.g. '0.77.0'
    * - {osxphotos_cmd_line}
      - The full command line used to run osxphotos
    * - {album}

@@ -42,6 +42,9 @@ rm docsrc/source/API_README.rst
 cp API_README.md docsrc/source/API_README.md
 m2r2 docsrc/source/API_README.md
 rm docsrc/source/API_README.md
+# Convert all named hyperlink references to anonymous references
+# to avoid "Duplicate explicit target name" Sphinx warnings
+sed -i '' -E 's/(\`[^<]+<[^>]+>\`)_([^_])/\1__\2/g' docsrc/source/API_README.rst
 
 # build docs
 echo "Building docs"
@@ -54,7 +57,7 @@ zip -r osxphotos/docs/docs.zip docs/* -x "docs/screencast/*"
 
 # build the package
 echo "Building package"
-python3 -m build
+uv build
 
 # build CLI executable
 echo "Building CLI executable"
