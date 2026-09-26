@@ -14,7 +14,7 @@ import sqlite3
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any
 from unicodedata import normalize
 
 from rich import print
@@ -39,6 +39,8 @@ from .._constants import (
     _PHOTOS_5_PROJECT_ALBUM_KIND,
     _PHOTOS_5_ROOT_FOLDER_KIND,
     _PHOTOS_5_SHARED_ALBUM_KIND,
+    _PHOTOS_11_SHARE_PARTICIPANT_ROLE_OWNER,
+    _PHOTOS_11_SHARED_VIDEO_DATASTORE_SUBTYPE,
     _UNKNOWN_PERSON,
     BURST_KEY,
     BURST_PICK_TYPE_NONE,
@@ -78,8 +80,6 @@ __all__ = ["PhotosDB", "PhotosDBReadError"]
 
 class PhotosDBReadError(Exception):
     """Generic error when reading the Photos database"""
-
-    pass
 
 
 class PhotosDB:
@@ -474,7 +474,7 @@ class PhotosDB:
     def keywords_as_dict(self):
         """Return keywords as dict of keyword: count in reverse sorted order (descending)"""
         keywords = {
-            k: len(self._dbkeywords_keyword[k]) for k in self._dbkeywords_keyword.keys()
+            k: len(self._dbkeywords_keyword[k]) for k in self._dbkeywords_keyword
         }
         keywords |= {k: 0 for k in self.keywords_without_photo}
         keywords = dict(sorted(keywords.items(), key=lambda kv: kv[1], reverse=True))
@@ -735,7 +735,7 @@ class PhotosDB:
             if os.path.exists(f"{fname}-shm"):
                 FileUtil.copy(f"{fname}-shm", f"{dest_path}-shm")
         except Exception as e:
-            raise IOError(f"Error copying{fname} to {dest_path}") from e
+            raise OSError(f"Error copying{fname} to {dest_path}") from e
 
         logger.debug(dest_path)
 
@@ -918,7 +918,7 @@ class PhotosDB:
                 "title": normalize_unicode(album[1]),
                 "cloudlibrarystate": album[2],
                 "cloudidentifier": album[3],
-                "intrash": False if album[4] == 0 else True,
+                "intrash": album[4] != 0,
                 "cloudlocalstate": None,  # Photos 5+
                 "cloudownerfirstname": None,  # Photos 5+
                 "cloudownderlastname": None,  # Photos 5+
@@ -1234,26 +1234,22 @@ class PhotosDB:
             self._dbphotos[uuid]["pk"] = row[
                 26
             ]  # same as masterModelID, to match Photos 5
-            self._dbphotos[uuid]["panorama"] = True if row[25] == 1 else False
-            self._dbphotos[uuid]["slow_mo"] = True if row[25] == 2 else False
-            self._dbphotos[uuid]["time_lapse"] = True if row[25] == 3 else False
-            self._dbphotos[uuid]["hdr"] = (
-                True if (row[25] == 4 or row[25] == 8) else False
-            )
-            self._dbphotos[uuid]["live_photo"] = (
-                True if (row[25] == 5 or row[25] == 8) else False
-            )
-            self._dbphotos[uuid]["screenshot"] = True if row[25] == 6 else False
+            self._dbphotos[uuid]["panorama"] = row[25] == 1
+            self._dbphotos[uuid]["slow_mo"] = row[25] == 2
+            self._dbphotos[uuid]["time_lapse"] = row[25] == 3
+            self._dbphotos[uuid]["hdr"] = bool(row[25] == 4 or row[25] == 8)
+            self._dbphotos[uuid]["live_photo"] = bool(row[25] == 5 or row[25] == 8)
+            self._dbphotos[uuid]["screenshot"] = row[25] == 6
             # screen-recording (not available <= _PHOTOS_4_VERSION)
             self._dbphotos[uuid]["screen_recording"] = None
-            self._dbphotos[uuid]["portrait"] = True if row[25] == 9 else False
+            self._dbphotos[uuid]["portrait"] = row[25] == 9
 
             # spatial (Apple Vision Pro) photos not available <= _PHOTOS_4_VERSION
             self._dbphotos[uuid]["spatial"] = 0
 
             # selfies (front facing camera, RKVersion.selfPortrait == 1)
             if row[27] is not None:
-                self._dbphotos[uuid]["selfie"] = True if row[27] == 1 else False
+                self._dbphotos[uuid]["selfie"] = row[27] == 1
             else:
                 self._dbphotos[uuid]["selfie"] = None
 
@@ -1269,7 +1265,7 @@ class PhotosDB:
             self._dbphotos[uuid]["cloudMasterGUID"] = None  # Photos 5+
 
             # associated RAW image info
-            self._dbphotos[uuid]["has_raw"] = True if row[25] == 7 else False
+            self._dbphotos[uuid]["has_raw"] = row[25] == 7
             self._dbphotos[uuid]["UTI_raw"] = None
             self._dbphotos[uuid]["raw_data_length"] = None
             self._dbphotos[uuid]["raw_info"] = None
@@ -1487,9 +1483,7 @@ class PhotosDB:
             uuid = row[0]
             if uuid in self._dbphotos:
                 self._dbphotos[uuid]["live_model_id"] = row[1]
-                self._dbphotos[uuid]["modeResourceIsOnDisk"] = (
-                    True if row[6] == 1 else False
-                )
+                self._dbphotos[uuid]["modeResourceIsOnDisk"] = row[6] == 1
 
         # init any uuids that had no edits or live photos
         # also initialized UTI_edited and edit_resource_id
@@ -1541,7 +1535,7 @@ class PhotosDB:
                 self._dbphotos[uuid]["cloudLibraryState"] = row[1]
                 self._dbphotos[uuid]["cloudAvailable"] = row[2]
                 self._dbphotos[uuid]["cloudStatus"] = row[3]
-                self._dbphotos[uuid]["incloud"] = True if row[2] == 1 else False
+                self._dbphotos[uuid]["incloud"] = row[2] == 1
 
         # get location data
         verbose("Processing location data.")
@@ -1939,7 +1933,7 @@ class PhotosDB:
                 "kind": album[6],
                 "parentfolder": album[7],
                 "pk": album[8],
-                "intrash": False if album[9] == 0 else True,
+                "intrash": album[9] != 0,
                 "creation_date": album[10]
                 or 0,  # iPhone Photos.sqlite can have null value
                 "start_date": album[11] or 0,
@@ -1953,11 +1947,13 @@ class PhotosDB:
             # in Photos >= 5, folders are special albums
             self._dbalbums_pk[album[8]] = album[0]
 
-        if self.photos_version > 11:
+        # Photos 11+ (macOS 26+) stores shared albums as CollectionShare records in ZSHARE
+        self._collection_share_ent = self._get_collection_share_entity()
+        if self._collection_share_ent is not None:
             try:
                 self._process_shared_albums()
             except Exception as e:
-                logging.debug(f"Error processing shared albums: {e}")
+                logger.warning(f"Error processing shared albums: {e}")
 
         # get pk of root folder
         root_uuid = [
@@ -2187,7 +2183,7 @@ class PhotosDB:
             info["hasAdjustments"] = row[15]
 
             info["cloudbatchpublishdate"] = row[16]
-            info["shared"] = True if row[16] is not None else False
+            info["shared"] = row[16] is not None
 
             # these will get filled in later
             # init to avoid key errors
@@ -2236,12 +2232,12 @@ class PhotosDB:
             # 102 = Time lapse video
             # 103 = Screen Recordings
             info["subtype"] = row[21]
-            info["live_photo"] = True if row[21] == 2 else False
-            info["screenshot"] = True if row[21] == 10 else False
-            info["screen_recording"] = True if row[21] == 103 else False
+            info["live_photo"] = row[21] == 2
+            info["screenshot"] = row[21] == 10
+            info["screen_recording"] = row[21] == 103
 
-            info["slow_mo"] = True if row[21] == 101 else False
-            info["time_lapse"] = True if row[21] == 102 else False
+            info["slow_mo"] = row[21] == 101
+            info["time_lapse"] = row[21] == 102
 
             # Handle HDR photos and portraits
             # ZGENERICASSET.ZCUSTOMRENDEREDVALUE
@@ -2250,19 +2246,19 @@ class PhotosDB:
             # 6 = panorama
             # > 6 = portrait (sometimes, see ZDEPTHSTATE/ZDEPTHTYPE)
             info["customRenderedValue"] = row[22]
-            info["hdr"] = True if row[22] == 3 else False
+            info["hdr"] = row[22] == 3
             info["depth_state"] = row[36]
-            info["portrait"] = True if row[36] != 0 else False
+            info["portrait"] = row[36] != 0
 
             # spatial media type (Apple Vision Pro); 0 if not spatial or column not present
             # 1 == native spatial capture, 2 == 2D photo converted to spatial
             info["spatial"] = row[47] or 0
 
             # Set panorama from either KindSubType or RenderedValue
-            info["panorama"] = True if row[21] == 1 or row[22] == 6 else False
+            info["panorama"] = bool(row[21] == 1 or row[22] == 6)
 
             # Handle selfies (front facing camera, ZCAMERACAPTUREDEVICE=1)
-            info["selfie"] = True if row[23] == 1 else False
+            info["selfie"] = row[23] == 1
 
             # Determine if photo is part of cloud library (ZGENERICASSET.ZCLOUDASSETGUID not NULL)
             # Initialize cloud fields that will filled in later
@@ -2289,10 +2285,10 @@ class PhotosDB:
             # = 0 if jpeg is selected as "original" in Photos (the default)
             # = 1 if RAW is selected as "original" in Photos
             info["original_resource_choice"] = row[27]
-            info["raw_is_original"] = True if row[27] == 1 else False
+            info["raw_is_original"] = row[27] == 1
 
             # recently deleted items
-            info["intrash"] = True if row[28] == 1 else False
+            info["intrash"] = row[28] == 1
             info["trasheddate_timestamp"] = row[39]
             info["trasheddate"] = photos_datetime_local(row[39])
 
@@ -2519,6 +2515,9 @@ class PhotosDB:
                 else:
                     self._dbphotos[uuid]["isMissing"] = 0
 
+        if self._collection_share_ent is not None:
+            self._process_shared_album_missing_videos()
+
         # get information about cloud sync state
         c.execute(
             f""" SELECT
@@ -2532,7 +2531,7 @@ class PhotosDB:
             uuid = row[0]
             if uuid in self._dbphotos:
                 self._dbphotos[uuid]["cloudLocalState"] = row[1]
-                self._dbphotos[uuid]["incloud"] = True if row[1] == 3 else False
+                self._dbphotos[uuid]["incloud"] = row[1] == 3
                 self._dbphotos[uuid]["cloudMasterGUID"] = row[2]
 
         # get information about associted RAW images
@@ -2785,32 +2784,53 @@ class PhotosDB:
 
             self._db_moment_pk[moment_info["pk"]] = moment_info
 
+    def _get_collection_share_entity(self) -> int | None:
+        """Return the Core Data entity number for CollectionShare records in ZSHARE
+        or None if the database does not have CollectionShare (Photos < 11, macOS < 26)
+        """
+        _, c = self.get_db_connection()
+        try:
+            row = c.execute(
+                "SELECT Z_ENT FROM Z_PRIMARYKEY WHERE Z_NAME = 'CollectionShare'"
+            ).fetchone()
+        except sqlite3.Error as e:
+            logger.debug(f"Error reading CollectionShare entity: {e}")
+            return None
+        return row[0] if row else None
+
     def _process_shared_albums(self):
-        """Process shared album info on macOS Tahoe and later"""
-        # get details about albums
+        """Process shared album info on macOS 26 (Tahoe) and later
+
+        Starting with Photos 11 (macOS 26), shared albums are no longer stored in
+        ZGENERICALBUM (ZKIND=1505) but as CollectionShare records in ZSHARE;
+        ZSHARE also holds other share types (LibraryScope, MomentShare) so records
+        are filtered by the CollectionShare entity. Assets reference their shared
+        album via ZASSET.ZCOLLECTIONSHARE.
+        """
         _, c = self.get_db_connection()
 
         asset_table = _DB_TABLE_NAMES[self.photos_version]["ASSET"]
-        album_share_table = "ZSHARE"
+        share_ent = self._collection_share_ent
+
+        # assets in each shared album; Photos doesn't store a sort order for shared albums
+        # so sort by the date the asset was published to the shared album
         c.execute(
-            f""" SELECT
-                {album_share_table}.ZUUID,
+            f"""SELECT
+                ZSHARE.ZUUID,
                 {asset_table}.ZUUID
                 FROM {asset_table}
-                JOIN {album_share_table} ON {album_share_table}.Z_PK = {asset_table}.ZCOLLECTIONSHARE
-            """
+                JOIN ZSHARE ON ZSHARE.Z_PK = {asset_table}.ZCOLLECTIONSHARE
+                WHERE ZSHARE.Z_ENT = ?
+                ORDER BY {asset_table}.ZCLOUDBATCHPUBLISHDATE, {asset_table}.Z_PK
+            """,
+            (share_ent,),
         )
 
-        # 0     ZGENERICALBUM.ZUUID,
-        # 1     ZGENERICASSET.ZUUID,
-        # 2     Z_26ASSETS.Z_FOK_34ASSETS
+        # 0     ZSHARE.ZUUID
+        # 1     ZASSET.ZUUID
 
-        for album in c:
+        for sort_order, (album_uuid, photo_uuid) in enumerate(c):
             # store by uuid in _dbalbums_uuid and by album in _dbalbums_album
-            album_uuid = album[0]
-            photo_uuid = album[1]
-            # sort_order = album[2] # TODO: figure out album sort order
-            sort_order = 0
             try:
                 self._dbalbums_uuid[photo_uuid].append(album_uuid)
             except KeyError:
@@ -2821,21 +2841,55 @@ class PhotosDB:
             except KeyError:
                 self._dbalbums_album[album_uuid] = [(photo_uuid, sort_order)]
 
+        # get the owner of each shared album
+        # role column is ZROLE on macOS 26, renamed ZCPLROLE on macOS 27
+        participant_columns = sqlite_columns(c.connection, "ZSHAREPARTICIPANT")
+        role_column = "ZCPLROLE" if "ZCPLROLE" in participant_columns else "ZROLE"
+        owners = {}
+        if role_column in participant_columns:
+            c.execute(
+                f"""SELECT
+                    ZSHARE.ZUUID,
+                    ZSHAREPARTICIPANT.ZHASHEDPERSONID
+                    FROM ZSHAREPARTICIPANT
+                    JOIN ZSHARE ON ZSHARE.Z_PK = ZSHAREPARTICIPANT.ZSHARE
+                    WHERE ZSHARE.Z_ENT = ?
+                    AND ZSHAREPARTICIPANT.{role_column} = ?
+                """,
+                (share_ent, _PHOTOS_11_SHARE_PARTICIPANT_ROLE_OWNER),
+            )
+            owners = {row[0]: row[1] for row in c}
+
         # now get additional details about albums
         c.execute(
-            "SELECT "
-            "ZUUID, "  # 0
-            "ZTITLE, "  # 1
-            "ZCLOUDLOCALSTATE, "  # 2
-            "Z_PK, "  # 3
-            "ZTRASHEDSTATE, "  # 4
-            "ZCREATIONDATE, "  # 5
-            "ZSTARTDATE, "  # 6
-            "ZENDDATE, "  # 7
-            "ZCUSTOMSORTASCENDING, "  # 8
-            "ZCUSTOMSORTKEY "  # 9
-            "FROM ZSHARE "
+            """SELECT
+                ZUUID,
+                ZTITLE,
+                ZCLOUDLOCALSTATE,
+                Z_PK,
+                ZTRASHEDSTATE,
+                ZCREATIONDATE,
+                ZSTARTDATE,
+                ZENDDATE,
+                ZCUSTOMSORTASCENDING,
+                ZCUSTOMSORTKEY
+                FROM ZSHARE
+                WHERE Z_ENT = ?
+            """,
+            (share_ent,),
         )
+
+        # 0     ZUUID
+        # 1     ZTITLE
+        # 2     ZCLOUDLOCALSTATE
+        # 3     Z_PK
+        # 4     ZTRASHEDSTATE
+        # 5     ZCREATIONDATE
+        # 6     ZSTARTDATE
+        # 7     ZENDDATE
+        # 8     ZCUSTOMSORTASCENDING
+        # 9     ZCUSTOMSORTKEY
+
         for album in c:
             self._dbalbum_details[album[0]] = {
                 "_uuid": album[0],
@@ -2846,22 +2900,46 @@ class PhotosDB:
                 "cloudownerfirstname": None,
                 "cloudownderlastname": None,
                 "parentfolder": None,
-                "cloudownerhashedpersonid": "XXXUNKNOWNXXX",
+                "cloudownerhashedpersonid": owners.get(album[0]),
                 "kind": _PHOTOS_5_SHARED_ALBUM_KIND,
                 "pk": album[3],
-                "intrash": False if album[4] == 0 else True,
-                "creation_date": album[5]
-                or 0,  # iPhone Photos.sqlite can have null value
+                "intrash": bool(album[4]),
+                "creation_date": album[5] or 0,
                 "start_date": album[6] or 0,
                 "end_date": album[7] or 0,
                 "customsortascending": album[8],
                 "customsortkey": album[9],
             }
 
-            # add cross-reference by pk to uuid
-            # needed to extract folder hierarchy
-            # in Photos >= 5, folders are special albums
-            self._dbalbums_pk[album[8]] = album[0]
+            # Note: ZSHARE.Z_PK is not added to _dbalbums_pk as ZSHARE and ZGENERICALBUM
+            # primary keys are from different tables and may collide;
+            # shared albums cannot be in folders so the cross-reference is not needed
+
+    def _process_shared_album_missing_videos(self):
+        """Set isMissing for videos in shared albums on Photos 11+ (macOS 26+)
+
+        Shared videos are stored as UUID.medium.MP4 which is a separate resource
+        (ZDATASTORESUBTYPE = 8) from the poster frame; the video may not be
+        downloaded even if the poster frame is.
+        """
+        _, c = self.get_db_connection()
+        asset_table = _DB_TABLE_NAMES[self.photos_version]["ASSET"]
+        c.execute(
+            f"""SELECT
+                {asset_table}.ZUUID,
+                ZINTERNALRESOURCE.ZLOCALAVAILABILITY
+                FROM {asset_table}
+                JOIN ZSHARE ON ZSHARE.Z_PK = {asset_table}.ZCOLLECTIONSHARE
+                JOIN ZINTERNALRESOURCE ON ZINTERNALRESOURCE.ZASSET = {asset_table}.Z_PK
+                WHERE ZSHARE.Z_ENT = ?
+                AND {asset_table}.ZKIND = 1
+                AND ZINTERNALRESOURCE.ZDATASTORESUBTYPE = ?
+            """,
+            (self._collection_share_ent, _PHOTOS_11_SHARED_VIDEO_DATASTORE_SUBTYPE),
+        )
+        for uuid, local_availability in c:
+            if uuid in self._dbphotos:
+                self._dbphotos[uuid]["isMissing"] = 0 if local_availability == 1 else 1
 
     def _build_album_folder_hierarchy_5(self, uuid, folders=None):
         """Recursively build folder/album hierarchy
@@ -2904,8 +2982,10 @@ class PhotosDB:
             logger.debug(f"Caught _dbalbum_folders KeyError for album: {album_uuid}")
             return []
 
-        def _recurse_folder_hierarchy(folders, hierarchy=[]):
+        def _recurse_folder_hierarchy(folders, hierarchy=None):
             """Recursively walk the folders dict to build list of folder hierarchy"""
+            if hierarchy is None:
+                hierarchy = []
             if not folders:
                 # empty folder dict (album has no folder hierarchy)
                 return []
@@ -2941,8 +3021,10 @@ class PhotosDB:
             logger.debug(f"Caught _dbalbum_folders KeyError for album: {album_uuid}")
             return []
 
-        def _recurse_folder_hierarchy(folders, hierarchy=[]):
+        def _recurse_folder_hierarchy(folders, hierarchy=None):
             """Recursively walk the folders dict to build list of folder hierarchy"""
+            if hierarchy is None:
+                hierarchy = []
 
             if not folders:
                 # empty folder dict (album has no folder hierarchy)
@@ -2980,8 +3062,10 @@ class PhotosDB:
         # title = photosdb._dbalbum_details[album_uuid]["title"]
         folders = self._dbalbum_folders[album_uuid]
 
-        def _recurse_folder_hierarchy(folders, hierarchy=[]):
+        def _recurse_folder_hierarchy(folders, hierarchy=None):
             """Recursively walk the folders dict to build list of folder hierarchy"""
+            if hierarchy is None:
+                hierarchy = []
             if not folders:
                 # empty folder dict (album has no folder hierarchy)
                 return []
@@ -3011,8 +3095,10 @@ class PhotosDB:
         # title = photosdb._dbalbum_details[album_uuid]["title"]
         folders = self._dbalbum_folders[album_uuid]
 
-        def _recurse_folder_hierarchy(folders, hierarchy=[]):
+        def _recurse_folder_hierarchy(folders, hierarchy=None):
             """Recursively walk the folders dict to build list of folder hierarchy"""
+            if hierarchy is None:
+                hierarchy = []
 
             if not folders:
                 # empty folder dict (album has no folder hierarchy)
@@ -3115,7 +3201,8 @@ class PhotosDB:
                 detail["kind"] == album_kind
                 and not detail["intrash"]
                 and (
-                    (shared and detail["cloudownerhashedpersonid"] is not None)
+                    # shared albums from ZSHARE (Photos 11+) may not have an owner
+                    (shared and album_kind == _PHOTOS_5_SHARED_ALBUM_KIND)
                     or (not shared and detail["cloudownerhashedpersonid"] is None)
                 )
             ):
@@ -3139,16 +3226,16 @@ class PhotosDB:
 
     def photos(
         self,
-        keywords: Optional[List[str]] = None,
-        uuid: Optional[List[str]] = None,
-        persons: Optional[List[str]] = None,
-        albums: Optional[List[str]] = None,
+        keywords: list[str] | None = None,
+        uuid: list[str] | None = None,
+        persons: list[str] | None = None,
+        albums: list[str] | None = None,
         images: bool = True,
         movies: bool = True,
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None,
+        from_date: datetime | None = None,
+        to_date: datetime | None = None,
         intrash: bool = False,
-    ) -> List[PhotoInfo]:
+    ) -> list[PhotoInfo]:
         """Return a list of PhotoInfo objects
         If called with no args, returns the entire database of photos
         If called with args, returns photos matching the args (e.g. keywords, persons, etc.)

@@ -1123,6 +1123,34 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "itsluisf",
+      "name": "itsluisf",
+      "avatar_url": "https://avatars.githubusercontent.com/u/159919927?v=4",
+      "profile": "https://github.com/itsluisf",
+      "contributions": [
+        "bug",
+        "research"
+      ]
+    },
+    {
+      "login": "gerbz",
+      "name": "GΞR₿Z",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1421206?v=4",
+      "profile": "http://gerbz.com",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "mishra-prince",
+      "name": "Prince Kumar Mishra",
+      "avatar_url": "https://avatars.githubusercontent.com/u/88850888?v=4",
+      "profile": "https://github.com/mishra-prince",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

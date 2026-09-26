@@ -5,6 +5,7 @@ import os.path
 import sqlite3
 from datetime import datetime
 from enum import Enum
+from typing import ClassVar
 
 logger: logging.Logger = logging.getLogger("osxphotos")
 
@@ -360,6 +361,10 @@ _PHOTOS_5_FOLDER_KIND = 4000  # user folder
 _PHOTOS_5_ROOT_FOLDER_KIND = 3999  # root folder
 _PHOTOS_5_IMPORT_SESSION_ALBUM_KIND = 1506  # import session
 
+# Photos 11+ (macOS 26+) stores shared albums as CollectionShare records in ZSHARE
+_PHOTOS_11_SHARE_PARTICIPANT_ROLE_OWNER = 1  # ZSHAREPARTICIPANT.ZROLE, ZCPLROLE
+_PHOTOS_11_SHARED_VIDEO_DATASTORE_SUBTYPE = 8  # ZINTERNALRESOURCE for UUID.medium.MP4
+
 _PHOTOS_4_ALBUM_KIND = 3  # RKAlbum.albumSubclass
 _PHOTOS_4_ALBUM_TYPE_ALBUM = 1  # RKAlbum.albumType
 _PHOTOS_4_ALBUM_TYPE_PROJECT = 9  # RKAlbum.albumType
@@ -401,7 +406,7 @@ class SearchCategory:
     CITY = 7
     LOCALITY_8 = 8
     NAMED_AREA = 9
-    ALL_LOCALITY = [
+    ALL_LOCALITY: ClassVar[list[int]] = [
         LOCALITY_4,
         SUB_LOCALITY_5,
         SUB_LOCALITY_6,
@@ -436,7 +441,7 @@ class SearchCategory:
     PHOTO_TYPE_SELFIES = 2054
     PHOTO_TYPE_FAVORITES = 2055
     PHOTO_TYPE_ANIMATED = None  # Photos 8+ only
-    MEDIA_TYPES = [
+    MEDIA_TYPES: ClassVar[list[int]] = [
         PHOTO_TYPE_VIDEO,
         PHOTO_TYPE_SLOMO,
         PHOTO_TYPE_LIVE,
@@ -453,6 +458,29 @@ class SearchCategory:
     TEXT_FOUND = None  # Photos 8+ only
     DETECTED_TEXT = None  # Photos 8+ only
     SOURCE = None  # Photos 8+ only
+    TIME_OF_DAY = None  # Photos 8+ only
+    WEEKPART = None  # Photos 8+ only
+    AREA_OF_INTEREST = None  # Photos 8+ only
+    COUNTRY_CODE = None  # Photos 8+ only
+    CONTINENT = None  # Photos 8+ only
+    REGION = None  # Photos 8+ only
+    EVENT = None  # Photos 8+ only
+    EVENT_PERFORMER = None  # Photos 8+ only
+    EVENT_TYPE = None  # Photos 8+ only
+    PET = None  # Photos 8+ only
+    LANDMARK = None  # Photos 8+ only
+    TRIP = None  # Photos 8+ only
+    SOUND = None  # Photos 8+ only
+    HUMAN_ACTION = None  # Photos 8+ only
+    DOCUMENT_TYPE = None  # Photos 8+ only
+    DAY_OF_WEEK = None  # macOS 27+ only
+    AGE_GROUP = None  # macOS 27+ only
+    PHOTOGRAPHIC_STYLE = None  # macOS 27+ only
+    FILE_TYPE = None  # macOS 27+ only
+    CAPTURED_BY_ME = None  # macOS 27+ only
+    ID_DOCUMENT_TYPE = None  # macOS 27+ only
+    ID_DOCUMENT_CARD_TYPE = None  # macOS 27+ only
+    ID_DOCUMENT_NAME = None  # macOS 27+ only
 
     @classmethod
     def categories(cls) -> dict[int, str]:
@@ -480,28 +508,40 @@ class SearchCategory_Photos8(SearchCategory):
     SUB_LOCALITY_6 = 6
     LOCALITY_8 = 8
     NAMED_AREA = 7
-    ALL_LOCALITY = [
+    ALL_LOCALITY: ClassVar[list[int]] = [
         LOCALITY_4,
         SUB_LOCALITY_6,
         LOCALITY_8,
         NAMED_AREA,
     ]
+    AREA_OF_INTEREST = 9
+    COUNTRY_CODE = 13
     HOME = 1000
     WORK = 1001
+    CONTINENT = 1007
+    REGION = 1008
     LABEL = 1500
+    LANDMARK = 1520
     MONTH = 1100
     YEAR = 1101
     HOLIDAY = 1103
     SEASON = 1104
+    TIME_OF_DAY = 1106
+    WEEKPART = 1107
     KEYWORDS = 1200
     TITLE = 1201
     DESCRIPTION = 1202
     DETECTED_TEXT = 1203  # new in Photos 8
     TEXT_FOUND = 1205  # new in Photos 8
     PERSON = 1300
+    PET = 1330
     ACTIVITY = 1600
+    TRIP = 1610
     VENUE = 1700
     VENUE_TYPE = 1701
+    EVENT = 1800
+    EVENT_PERFORMER = 1801
+    EVENT_TYPE = 1802
     PHOTO_TYPE_VIDEO = 1901
     PHOTO_TYPE_SELFIES = 1915
     PHOTO_TYPE_LIVE = 1906
@@ -513,14 +553,22 @@ class SearchCategory_Photos8(SearchCategory):
     PHOTO_TYPE_BURSTS = 1913
     PHOTO_TYPE_SCREENSHOT = 1907
     PHOTO_TYPE_SCREENRECORDINGS = 1916
+    PHOTO_TYPE_SCREENRECORDINGS_ALT = (
+        1910  # used for screen recordings in some versions
+    )
     PHOTO_TYPE_ANIMATED = 1912
     PHOTO_TYPE_RAW = 1902
-    MEDIA_TYPES = [
+    PHOTO_TYPE_CINEMATIC = 1903
+    PHOTO_TYPE_LONG_EXPOSURE = 1911
+    PHOTO_TYPE_LIVE_DEPTH = 1918
+    PHOTO_TYPE_SPATIAL = 1919
+    MEDIA_TYPES: ClassVar[list[int]] = [
         PHOTO_TYPE_VIDEO,
         PHOTO_TYPE_SLOMO,
         PHOTO_TYPE_LIVE,
         PHOTO_TYPE_SCREENSHOT,
         PHOTO_TYPE_SCREENRECORDINGS,
+        PHOTO_TYPE_SCREENRECORDINGS_ALT,
         PHOTO_TYPE_PANORAMA,
         PHOTO_TYPE_TIMELAPSE,
         PHOTO_TYPE_BURSTS,
@@ -528,10 +576,27 @@ class SearchCategory_Photos8(SearchCategory):
         PHOTO_TYPE_SELFIES,
         PHOTO_TYPE_FAVORITES,
         PHOTO_TYPE_ANIMATED,
+        PHOTO_TYPE_CINEMATIC,
+        PHOTO_TYPE_LONG_EXPOSURE,
+        PHOTO_TYPE_LIVE_DEPTH,
+        PHOTO_TYPE_SPATIAL,
     ]
     PHOTO_NAME = 2100
     CAMERA = 2300  # new in Photos 8
     SOURCE = 2200  # new in Photos 8, shows the app/software source for the photo, e.g. Messages, Safari, etc.
+    SOUND = 2500
+    HUMAN_ACTION = 2600
+    DOCUMENT_TYPE = 2800
+    # The following are only found in leo.sqlite (macOS 27+) and have no psi.sqlite
+    # equivalent; they use the leo.sqlite category ID
+    DAY_OF_WEEK = 1070
+    AGE_GROUP = 3030
+    ID_DOCUMENT_TYPE = 4130
+    PHOTOGRAPHIC_STYLE = 5200
+    FILE_TYPE = 8051
+    CAPTURED_BY_ME = 8170
+    ID_DOCUMENT_CARD_TYPE = 11000
+    ID_DOCUMENT_NAME = 11010
 
     @classmethod
     def categories(cls) -> dict[int, str]:
@@ -672,5 +737,5 @@ UUID_PATTERN = (
 # earlier versions of python.org python 3.x default to 1 which means threads may not share
 # sqlite3 connections and thus PhotoInfo.export() cannot be used in a multithreaded environment
 # pass SQLITE_CHECK_SAME_THREAD to sqlite3.connect() to enable multithreaded access on systems that support it
-SQLITE_CHECK_SAME_THREAD = not sqlite3.threadsafety == 3
+SQLITE_CHECK_SAME_THREAD = sqlite3.threadsafety != 3
 logger.debug(f"{SQLITE_CHECK_SAME_THREAD=}, {sqlite3.threadsafety=}")

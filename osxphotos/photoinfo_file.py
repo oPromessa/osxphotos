@@ -7,7 +7,6 @@ import logging
 import os
 import pathlib
 import uuid
-from typing import Optional, Union
 
 from ._constants import _OSXPHOTOS_NONE_SENTINEL
 from .datetime_utils import datetime_naive_to_local
@@ -38,7 +37,7 @@ class PhotoInfoFromFile:
 
     def __init__(
         self,
-        filepath: Union[str, pathlib.Path],
+        filepath: str | pathlib.Path,
         exiftool: str | None = None,
         sidecar: str | None = None,
     ):
@@ -52,7 +51,13 @@ class PhotoInfoFromFile:
                 pathlib.Path(filepath), self._exiftool_path
             )
         if sidecar:
-            self._metadata |= metadata_from_sidecar(pathlib.Path(sidecar), exiftool)
+            try:
+                self._metadata |= metadata_from_sidecar(pathlib.Path(sidecar), exiftool)
+            except (IndexError, ValueError) as e:
+                # An unrecognized or unreadable sidecar should not abort the
+                # caller (e.g. an entire import batch); warn and continue with
+                # whatever metadata has been gathered so far. See issue #2228.
+                logger.warning(f"Error reading sidecar {sidecar}: {e}")
 
     @property
     def uuid(self):
@@ -169,9 +174,7 @@ class PhotoInfoFromFile:
             self._exiftool = exiftool
             return self._exiftool
 
-    def render_template(
-        self, template_str: str, options: Optional[RenderOptions] = None
-    ):
+    def render_template(self, template_str: str, options: RenderOptions | None = None):
         """Renders a template string for PhotoInfo instance using PhotoTemplate
 
         Args:
@@ -188,7 +191,7 @@ class PhotoInfoFromFile:
     def __getattr__(self, name):
         """Return None for any other non-private attribute"""
         if not name.startswith("_"):
-            return None
+            return
         raise AttributeError()
 
 

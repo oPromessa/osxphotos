@@ -6,9 +6,9 @@ import datetime
 import json
 import pathlib
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Callable, Optional, Tuple
 
 from osxphotos.photoinfo_protocol import PhotoInfoProtocol
 
@@ -49,7 +49,7 @@ class MetaData:
     title: str = ""
     description: str = ""
     keywords: list[str] = field(default_factory=list)
-    location: tuple[Optional[float], Optional[float]] = (None, None)
+    location: tuple[float | None, float | None] = (None, None)
     favorite: bool = False
     rating: int = 0
     persons: list[str] = field(default_factory=list)
@@ -95,6 +95,11 @@ def get_sidecar_filetype(filepath: str | pathlib.Path) -> SidecarFileType:
                 return SidecarFileType.Unknown
             if isinstance(metadata, list):
                 # could be exiftool or osxphotos
+                if not metadata:
+                    # an empty list is not a recognized sidecar; treat as
+                    # Unknown rather than raising IndexError on metadata[0]
+                    # (see issue #2228)
+                    return SidecarFileType.Unknown
                 metadata = metadata[0]
                 if metadata.get("ExifToolVersion"):
                     return SidecarFileType.exiftool
@@ -106,19 +111,12 @@ def get_sidecar_filetype(filepath: str | pathlib.Path) -> SidecarFileType:
                 # 'title', 'description', 'imageViews', 'creationTime',
                 # 'photoTakenTime', 'geoData', 'geoDataExif', 'url'
                 # Google Takeout is the only format to sometimes set 'googlePhotosOrigin'
-                if ("googlePhotosOrigin" in metadata) or all(
-                    k in metadata
-                    for k in (
-                        "title",
-                        "description",
-                        "imageViews",
-                        "creationTime",
-                        "photoTakenTime",
-                        "geoData",
-                        "geoDataExif",
-                        "url",
-                    )
-                ):
+                # Older '*.supplemental-metadata.json' files may omit some of these
+                # keys (e.g. 'geoDataExif', 'googlePhotosOrigin'), so treat the
+                # presence of 'photoTakenTime' as sufficient to identify Takeout JSON.
+                # (exiftool/osxphotos JSON sidecars are lists, not dicts, so a dict
+                # containing 'photoTakenTime' is unambiguously Google Takeout.)
+                if "googlePhotosOrigin" in metadata or "photoTakenTime" in metadata:
                     return SidecarFileType.GoogleTakeout
     return SidecarFileType.Unknown
 
@@ -159,7 +157,7 @@ def get_sidecar_for_file(filepath: str | pathlib.Path) -> pathlib.Path | None:
 
     stem = filepath.stem
     # strip off -edited suffix (Google Takeout) or _edited (OSXPhotos edited images with default suffix)
-    if stem.endswith("-edited") or stem.endswith("_edited"):
+    if stem.endswith(("-edited", "_edited")):
         # strip off -edited/_edited suffix
         stem = stem[:-7]
         new_filepath = filepath.with_stem(stem)
@@ -419,7 +417,7 @@ def metadata_from_metadata_dict(metadata: dict) -> MetaData:
 
 def location_from_metadata_dict(
     metadata: dict,
-) -> Tuple[Optional[float], Optional[float]]:
+) -> tuple[float | None, float | None]:
     """Get location from metadata dict as loaded from ExifTool or sidecar
 
     Returns:
